@@ -1,0 +1,44 @@
+{
+  "name": "haveri",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run check && npm run lint && npm run test",
+    "worker": "tsx src/lib/server/queue/worker.ts",
+    "db:migrate": "tsx src/lib/server/db/migrate.ts",
+    "db:seed": "tsx src/lib/server/db/seed.ts"
+  },
+  "dependencies": {
+    "@sveltejs/adapter-node": "^5.2.12",
+    "@sveltejs/kit": "^2.16.0",
+    "bullmq": "^5.10.3",
+    "drizzle-orm": "^0.39.1",
+    "ioredis": "^5.4.1",
+    "pg": "^8.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "drizzle-kit": "^0.30.0",
+    "eslint": "^9.18.0",
+    "eslint-plugin-svelte": "^2.46.1",
+    "svelte": "^5.14.3",
+    "svelte-check": "^4.1.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8"
+  }
+}
