@@ -357,3 +357,20 @@ The minimum loop that proves value:
 7. Follow-up actions can be created and assigned at close
 
 Everything else — SOP retrieval, AI summaries, trend detection, analytics — waits for Phase 2. Get the basic loop right first.
+
+---
+
+## Implementation Status (MVP)
+
+Implemented in this codebase:
+- Drizzle/PostgreSQL schema for multi-tenant incident domain + Better Auth tables.
+- Better Auth integration (`/api/auth`) with SvelteKit hooks and protected app/API flows.
+- Event-sourced incident service with append-only timeline events and derived current-state projection.
+- Follow-up tracker APIs and status updates.
+- Teams webhook adapter with command parsing and idempotency handling.
+- Escalation policy selection, BullMQ job scheduling, and worker-based escalation step execution.
+- Web dashboard for incident declaration/listing and incident detail timeline with control actions.
+
+Pending for later phases:
+- SOP retrieval, semantic search, and AI-generated summaries.
+- Trend analytics and recurring-issue detection.
