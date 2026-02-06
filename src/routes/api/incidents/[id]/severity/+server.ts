@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { getOrganizationId, requireUser } from '$lib/server/auth-utils';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
+import { syncGlobalIncidentAnnouncement } from '$lib/server/services/incident-workflow-service';
 import { incidentService } from '$lib/server/services/incident-service';
 import { incidentSeverities } from '$lib/shared/domain';
 import type { RequestHandler } from './$types';
@@ -20,6 +21,10 @@ export const POST: RequestHandler = async (event) => {
       organizationId: getOrganizationId(event),
       incidentId: event.params.id,
       severity: payload.severity
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId: getOrganizationId(event),
+      incidentId: event.params.id
     });
 
     return json({ ok: true });

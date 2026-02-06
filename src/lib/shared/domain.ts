@@ -20,6 +20,7 @@ export type IncidentEventType =
   | 'severity_change'
   | 'escalation'
   | 'assignment'
+  | 'comms_assignment'
   | 'action_taken'
   | 'attachment'
   | 'bot_guidance'
@@ -58,8 +59,11 @@ export interface DeclaredIncident {
   facilityId: string;
   areaId: string | null;
   assignedToMemberId: string | null;
+  commsLeadMemberId: string | null;
   chatPlatform: string;
   chatChannelRef: string;
+  globalChannelRef: string | null;
+  globalMessageRef: string | null;
   tags: string[];
 }
 

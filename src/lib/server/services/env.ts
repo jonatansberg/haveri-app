@@ -5,3 +5,11 @@ export function getDefaultOrgId(): string {
 export function getRedisUrl(): string {
   return process.env['REDIS_URL'] ?? 'redis://localhost:6379';
 }
+
+export function getTeamsGlobalIncidentChannel(): string {
+  return process.env['TEAMS_GLOBAL_INCIDENT_CHANNEL'] ?? 'haveri-incidents';
+}
+
+export function getTeamsIncidentChannelPrefix(): string {
+  return process.env['TEAMS_INCIDENT_CHANNEL_PREFIX'] ?? 'incident';
+}

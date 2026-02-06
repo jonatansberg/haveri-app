@@ -15,8 +15,11 @@ export interface DeclareIncidentInput {
   areaId?: string | null;
   assetIds?: string[];
   assignedToMemberId?: string | null;
+  commsLeadMemberId?: string | null;
   chatPlatform: string;
   chatChannelRef: string;
+  globalChannelRef?: string | null;
+  globalMessageRef?: string | null;
   tags?: string[];
   actorExternalId?: string | null;
   rawSourcePayload?: Record<string, unknown> | null;
@@ -42,6 +45,20 @@ export interface AssignLeadInput {
   incidentId: string;
   memberId: string;
   actorMemberId?: string | null;
+}
+
+export interface AssignCommsLeadInput {
+  organizationId: string;
+  incidentId: string;
+  memberId: string;
+  actorMemberId?: string | null;
+}
+
+export interface SetAnnouncementRefsInput {
+  organizationId: string;
+  incidentId: string;
+  globalChannelRef?: string | null;
+  globalMessageRef?: string | null;
 }
 
 export interface AddEventInput {
@@ -71,6 +88,8 @@ export interface IncidentService {
   updateStatus(input: UpdateStatusInput): Promise<void>;
   changeSeverity(input: ChangeSeverityInput): Promise<void>;
   assignLead(input: AssignLeadInput): Promise<void>;
+  assignCommsLead(input: AssignCommsLeadInput): Promise<void>;
+  setAnnouncementRefs(input: SetAnnouncementRefsInput): Promise<void>;
   addEvent(input: AddEventInput): Promise<void>;
   resolveIncident(input: ResolveIncidentInput): Promise<void>;
   closeIncident(input: CloseIncidentInput): Promise<void>;

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { aliasedTable, and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/client';
 import {
   areas,
@@ -21,9 +21,13 @@ export async function listIncidents(organizationId: string): Promise<
     declaredAt: string;
     facilityName: string;
     areaName: string | null;
-    assignedTo: string | null;
+    responsibleLead: string | null;
+    commsLead: string | null;
   }[]
 > {
+  const responsibleMember = aliasedTable(members, 'responsible_member');
+  const commsMember = aliasedTable(members, 'comms_member');
+
   const rows = await db
     .select({
       id: incidents.id,
@@ -33,7 +37,8 @@ export async function listIncidents(organizationId: string): Promise<
       declaredAt: incidents.declaredAt,
       facilityName: facilities.name,
       areaName: areas.name,
-      assignedTo: members.name
+      responsibleLead: responsibleMember.name,
+      commsLead: commsMember.name
     })
     .from(incidents)
     .innerJoin(
@@ -45,7 +50,8 @@ export async function listIncidents(organizationId: string): Promise<
     )
     .innerJoin(facilities, eq(facilities.id, incidents.facilityId))
     .leftJoin(areas, eq(areas.id, incidents.areaId))
-    .leftJoin(members, eq(members.id, incidentCurrentState.assignedToMemberId))
+    .leftJoin(responsibleMember, eq(responsibleMember.id, incidentCurrentState.assignedToMemberId))
+    .leftJoin(commsMember, eq(commsMember.id, incidents.commsLeadMemberId))
     .where(eq(incidents.organizationId, organizationId))
     .orderBy(desc(incidents.declaredAt));
 
@@ -61,9 +67,15 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
     declaredAt: string;
     facilityName: string;
     areaName: string | null;
-    assignedTo: string | null;
+    responsibleLead: string | null;
+    commsLead: string | null;
+    responsibleLeadMemberId: string | null;
+    commsLeadMemberId: string | null;
     tags: string[];
     chatChannelRef: string;
+    globalChannelRef: string | null;
+    globalMessageRef: string | null;
+    chatPlatform: string;
   };
   summary: {
     whatHappened: string;
@@ -90,6 +102,9 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
     assignedToMemberId: string | null;
   }[];
 }> {
+  const responsibleMember = aliasedTable(members, 'responsible_member');
+  const commsMember = aliasedTable(members, 'comms_member');
+
   const incidentRow = await db
     .select({
       id: incidents.id,
@@ -99,9 +114,15 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
       declaredAt: incidents.declaredAt,
       facilityName: facilities.name,
       areaName: areas.name,
-      assignedTo: members.name,
+      responsibleLead: responsibleMember.name,
+      commsLead: commsMember.name,
+      responsibleLeadMemberId: incidents.assignedToMemberId,
+      commsLeadMemberId: incidents.commsLeadMemberId,
       tags: incidents.tags,
       chatChannelRef: incidents.chatChannelRef,
+      globalChannelRef: incidents.globalChannelRef,
+      globalMessageRef: incidents.globalMessageRef,
+      chatPlatform: incidents.chatPlatform,
       summaryWhatHappened: incidentSummaries.whatHappened,
       summaryRootCause: incidentSummaries.rootCause,
       summaryResolution: incidentSummaries.resolution,
@@ -118,7 +139,8 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
     )
     .innerJoin(facilities, eq(facilities.id, incidents.facilityId))
     .leftJoin(areas, eq(areas.id, incidents.areaId))
-    .leftJoin(members, eq(members.id, incidentCurrentState.assignedToMemberId))
+    .leftJoin(responsibleMember, eq(responsibleMember.id, incidentCurrentState.assignedToMemberId))
+    .leftJoin(commsMember, eq(commsMember.id, incidents.commsLeadMemberId))
     .leftJoin(
       incidentSummaries,
       and(
@@ -185,9 +207,15 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
       declaredAt: incidentRow.declaredAt,
       facilityName: incidentRow.facilityName,
       areaName: incidentRow.areaName,
-      assignedTo: incidentRow.assignedTo,
+      responsibleLead: incidentRow.responsibleLead,
+      commsLead: incidentRow.commsLead,
+      responsibleLeadMemberId: incidentRow.responsibleLeadMemberId,
+      commsLeadMemberId: incidentRow.commsLeadMemberId,
       tags: incidentRow.tags,
-      chatChannelRef: incidentRow.chatChannelRef
+      chatChannelRef: incidentRow.chatChannelRef,
+      globalChannelRef: incidentRow.globalChannelRef,
+      globalMessageRef: incidentRow.globalMessageRef,
+      chatPlatform: incidentRow.chatPlatform
     },
     summary,
     events,

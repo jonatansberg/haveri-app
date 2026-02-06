@@ -33,6 +33,22 @@ export const organizations = pgTable('organizations', {
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
 });
 
+export const organizationChatSettings = pgTable(
+  'organization_chat_settings',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    platform: text('platform').notNull(),
+    globalIncidentChannelRef: text('global_incident_channel_ref').notNull(),
+    autoCreateIncidentChannel: boolean('auto_create_incident_channel').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
+  },
+  (table) => [unique().on(table.organizationId, table.platform)]
+);
+
 export const authUsers = pgTable('auth_user', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
@@ -224,8 +240,13 @@ export const incidents = pgTable(
     assignedToMemberId: uuid('assigned_to_member_id').references(() => members.id, {
       onDelete: 'set null'
     }),
+    commsLeadMemberId: uuid('comms_lead_member_id').references(() => members.id, {
+      onDelete: 'set null'
+    }),
     chatPlatform: text('chat_platform').notNull(),
     chatChannelRef: text('chat_channel_ref').notNull(),
+    globalChannelRef: text('global_channel_ref'),
+    globalMessageRef: text('global_message_ref'),
     tags: text('tags').array().notNull().default(sql`ARRAY[]::text[]`),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
   },

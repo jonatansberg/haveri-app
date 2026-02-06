@@ -11,6 +11,17 @@ describe('parseTeamsCommand', () => {
     });
   });
 
+  it('parses incident declare command with responsible and comms refs', () => {
+    const command = parseTeamsCommand('/incident SEV2 @resp:Alex @comms:Sara Press line unstable');
+    expect(command).toEqual({
+      type: 'declare',
+      severity: 'SEV2',
+      title: 'Press line unstable',
+      responsibleLeadRef: 'Alex',
+      commsLeadRef: 'Sara'
+    });
+  });
+
   it('parses status command', () => {
     const command = parseTeamsCommand('/status 123 RESOLVED');
     expect(command).toEqual({

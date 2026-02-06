@@ -12,6 +12,14 @@
     <strong>Severity:</strong> {data.incident.severity} |
     <strong>Facility:</strong> {data.incident.facilityName}
   </p>
+  <p>
+    <strong>Responsible Lead:</strong> {data.incident.responsibleLead ?? 'Unassigned'} |
+    <strong>Comms Lead:</strong> {data.incident.commsLead ?? 'None'}
+  </p>
+  <p>
+    <strong>Incident Channel:</strong> {data.incident.chatChannelRef} |
+    <strong>Global Channel:</strong> {data.incident.globalChannelRef ?? 'N/A'}
+  </p>
 
   <div class="grid">
     <div class="panel">
@@ -45,14 +53,26 @@
 
       <form method="POST" action="?/assign">
         <label>
-          Assign Lead
+          Assign Responsible Lead
           <select name="memberId">
             {#each data.members as member}
               <option value={member.id}>{member.name} ({member.role})</option>
             {/each}
           </select>
         </label>
-        <button type="submit">Assign</button>
+        <button type="submit">Assign Responsible</button>
+      </form>
+
+      <form method="POST" action="?/assignComms">
+        <label>
+          Assign Comms Lead
+          <select name="memberId">
+            {#each data.members as member}
+              <option value={member.id}>{member.name} ({member.role})</option>
+            {/each}
+          </select>
+        </label>
+        <button type="submit">Assign Comms</button>
       </form>
 
       <form method="POST" action="?/ack">

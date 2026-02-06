@@ -34,9 +34,18 @@
       </label>
 
       <label>
-        Initial Lead (optional)
-        <select name="assignedToMemberId">
-          <option value="">Unassigned</option>
+        Responsible Lead
+        <select name="assignedToMemberId" required>
+          {#each data.members as member}
+            <option value={member.id}>{member.name} ({member.role})</option>
+          {/each}
+        </select>
+      </label>
+
+      <label>
+        Comms Lead (optional)
+        <select name="commsLeadMemberId">
+          <option value="">None</option>
           {#each data.members as member}
             <option value={member.id}>{member.name} ({member.role})</option>
           {/each}
@@ -60,6 +69,8 @@
             <th>Status</th>
             <th>Severity</th>
             <th>Facility</th>
+            <th>Responsible</th>
+            <th>Comms</th>
             <th>Declared</th>
           </tr>
         </thead>
@@ -70,6 +81,8 @@
               <td>{incident.status}</td>
               <td>{incident.severity}</td>
               <td>{incident.facilityName}</td>
+              <td>{incident.responsibleLead ?? 'Unassigned'}</td>
+              <td>{incident.commsLead ?? '-'}</td>
               <td>{new Date(incident.declaredAt).toLocaleString()}</td>
             </tr>
           {/each}

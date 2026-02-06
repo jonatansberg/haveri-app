@@ -3,9 +3,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { db } from '$lib/server/db/client';
 import { facilities, members } from '$lib/server/db/schema';
-import { incidentService } from '$lib/server/services/incident-service';
+import { declareIncidentWithWorkflow } from '$lib/server/services/incident-workflow-service';
 import { listIncidents } from '$lib/server/services/incident-queries';
-import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
 import { incidentSeverities } from '$lib/shared/domain';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -13,7 +12,8 @@ const declareSchema = z.object({
   title: z.string().min(3).max(200),
   severity: z.enum(incidentSeverities),
   facilityId: z.string().uuid(),
-  assignedToMemberId: z.string().uuid().optional().nullable()
+  assignedToMemberId: z.string().uuid(),
+  commsLeadMemberId: z.string().uuid().optional().nullable()
 });
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -46,7 +46,8 @@ export const actions: Actions = {
       title: formData.get('title'),
       severity: formData.get('severity'),
       facilityId: formData.get('facilityId'),
-      assignedToMemberId: formData.get('assignedToMemberId') ?? null
+      assignedToMemberId: formData.get('assignedToMemberId'),
+      commsLeadMemberId: formData.get('commsLeadMemberId') ?? null
     });
 
     if (!parsed.success) {
@@ -55,28 +56,18 @@ export const actions: Actions = {
       });
     }
 
-    const incident = await incidentService.declareIncident({
+    const declared = await declareIncidentWithWorkflow({
       organizationId: locals.organizationId,
       title: parsed.data.title,
       severity: parsed.data.severity,
       declaredByMemberId: null,
       facilityId: parsed.data.facilityId,
-      chatPlatform: 'web',
-      chatChannelRef: `web-${Date.now()}`,
-      ...(parsed.data.assignedToMemberId
-        ? { assignedToMemberId: parsed.data.assignedToMemberId }
-        : {})
+      responsibleLeadMemberId: parsed.data.assignedToMemberId,
+      commsLeadMemberId: parsed.data.commsLeadMemberId ?? null,
+      chatPlatform: 'teams',
+      sourceChannelRef: null
     });
 
-    try {
-      await scheduleEscalationForIncident({
-        organizationId: locals.organizationId,
-        incidentId: incident.id
-      });
-    } catch (error) {
-      console.error('Failed to schedule escalation from dashboard action', error);
-    }
-
-    throw redirect(303, `/incidents/${incident.id}`);
+    throw redirect(303, `/incidents/${declared.incidentId}`);
   }
 };

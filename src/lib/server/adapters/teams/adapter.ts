@@ -1,11 +1,18 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/client';
-import { facilities, memberChatIdentities } from '$lib/server/db/schema';
+import { facilities } from '$lib/server/db/schema';
 import { parseTeamsCommand } from './command-parser';
 import { acknowledgeIncidentEscalation } from '$lib/server/services/escalation-service';
 import { findIncidentByChannel } from '$lib/server/services/incident-queries';
 import { incidentService } from '$lib/server/services/incident-service';
-import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
+import {
+  declareIncidentWithWorkflow,
+  syncGlobalIncidentAnnouncement
+} from '$lib/server/services/incident-workflow-service';
+import {
+  resolveMemberByNameHint,
+  resolveMemberByPlatformIdentity
+} from '$lib/server/services/member-identity-service';
 import { ValidationError } from '$lib/server/services/errors';
 
 export interface TeamsInboundMessage {
@@ -23,19 +30,11 @@ function toRawPayload(payload: TeamsInboundMessage): Record<string, unknown> {
 }
 
 async function resolveMemberId(organizationId: string, platformUserId: string): Promise<string | null> {
-  const row = await db
-    .select({ memberId: memberChatIdentities.memberId })
-    .from(memberChatIdentities)
-    .where(
-      and(
-        eq(memberChatIdentities.organizationId, organizationId),
-        eq(memberChatIdentities.platform, 'teams'),
-        eq(memberChatIdentities.platformUserId, platformUserId)
-      )
-    )
-    .limit(1)
-    .then((rows) => rows[0]);
-
+  const row = await resolveMemberByPlatformIdentity({
+    organizationId,
+    platform: 'teams',
+    platformUserId
+  });
   return row?.memberId ?? null;
 }
 
@@ -64,31 +63,39 @@ export async function handleTeamsInbound(
 
   if (command?.type === 'declare') {
     const facilityId = await resolveDefaultFacilityId(organizationId);
-    const incident = await incidentService.declareIncident({
+    const responsibleFromToken = command.responsibleLeadRef
+      ? await resolveMemberByNameHint({
+          organizationId,
+          nameHint: command.responsibleLeadRef
+        })
+      : null;
+    const commsFromToken = command.commsLeadRef
+      ? await resolveMemberByNameHint({
+          organizationId,
+          nameHint: command.commsLeadRef
+        })
+      : null;
+
+    const workflowResult = await declareIncidentWithWorkflow({
       organizationId,
       title: command.title,
       severity: command.severity,
       declaredByMemberId: memberId,
       facilityId,
+      responsibleLeadMemberId: responsibleFromToken?.memberId ?? memberId,
+      commsLeadMemberId: commsFromToken?.memberId ?? null,
       chatPlatform: 'teams',
-      chatChannelRef: payload.channelId,
+      sourceChannelRef: payload.channelId,
       actorExternalId: payload.userId,
       rawSourcePayload: toRawPayload(payload)
     });
 
-    try {
-      await scheduleEscalationForIncident({
-        organizationId,
-        incidentId: incident.id
-      });
-    } catch (error) {
-      console.error('Failed to schedule escalation jobs', error);
-    }
-
     return {
       ok: true,
       action: 'incident_declared',
-      incident
+      incidentId: workflowResult.incidentId,
+      incidentChannelRef: workflowResult.channelRef,
+      globalChannelRef: workflowResult.globalChannelRef
     };
   }
 
@@ -103,6 +110,10 @@ export async function handleTeamsInbound(
         resolution: command.summaryText,
         impact: {}
       }
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId,
+      incidentId: command.incidentId
     });
 
     return {
@@ -120,6 +131,10 @@ export async function handleTeamsInbound(
       actorMemberId: memberId,
       actorExternalId: payload.userId
     });
+    await syncGlobalIncidentAnnouncement({
+      organizationId,
+      incidentId: command.incidentId
+    });
 
     return {
       ok: true,
@@ -135,6 +150,10 @@ export async function handleTeamsInbound(
       incidentId: command.incidentId,
       actorMemberId: memberId
     });
+    await syncGlobalIncidentAnnouncement({
+      organizationId,
+      incidentId: command.incidentId
+    });
 
     return {
       ok: true,
@@ -147,7 +166,7 @@ export async function handleTeamsInbound(
     return {
       ok: false,
       action: 'unknown_command',
-      help: 'Supported commands: /incident <SEV1|SEV2|SEV3> <title>, /status <id> <STATUS>, /resolve <id> <summary>, /ack <id>'
+      help: 'Supported commands: /incident <SEV1|SEV2|SEV3> <title> [@resp:Name] [@comms:Name], /status <id> <STATUS>, /resolve <id> <summary>, /ack <id>'
     };
   }
 

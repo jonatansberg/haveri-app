@@ -26,6 +26,17 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 - Run migrations once in the target environment: `npm run db:migrate`.
 - Seed optional bootstrap data with `npm run db:seed`.
 
+## Incident Workflow (MVP Static v1)
+- `Responsible Lead` is required on every incident.
+- `Comms Lead` is optional and can be assigned later.
+- Teams incident declaration creates a dedicated incident channel.
+- A global incident announcement card is posted to a configurable Teams channel and updated as incident state changes.
+- Workflow rules are static today (`v1-static`) and intended to become configuration-driven later.
+
+## Teams Config
+- `TEAMS_GLOBAL_INCIDENT_CHANNEL`: default global announcement channel reference.
+- `TEAMS_INCIDENT_CHANNEL_PREFIX`: prefix for generated incident channel names.
+
 ## Verification
 - Run full quality gate:
   - `npm run verify`
@@ -38,6 +49,7 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 - `POST /api/incidents/:id/status`
 - `POST /api/incidents/:id/severity`
 - `POST /api/incidents/:id/assign`
+- `POST /api/incidents/:id/comms`
 - `POST /api/incidents/:id/resolve`
 - `POST /api/incidents/:id/close`
 - `POST /api/incidents/:id/ack`

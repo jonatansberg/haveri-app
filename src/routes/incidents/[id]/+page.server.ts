@@ -7,6 +7,7 @@ import { acknowledgeIncidentEscalation } from '$lib/server/services/escalation-s
 import { updateFollowUpStatus } from '$lib/server/services/follow-up-service';
 import { getIncidentDetail } from '$lib/server/services/incident-queries';
 import { incidentService } from '$lib/server/services/incident-service';
+import { syncGlobalIncidentAnnouncement } from '$lib/server/services/incident-workflow-service';
 import { followUpStatuses, incidentSeverities, incidentStatuses } from '$lib/shared/domain';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -19,6 +20,10 @@ const severitySchema = z.object({
 });
 
 const assignSchema = z.object({
+  memberId: z.string().uuid()
+});
+
+const assignCommsSchema = z.object({
   memberId: z.string().uuid()
 });
 
@@ -68,6 +73,10 @@ export const actions: Actions = {
       incidentId: params.id,
       newStatus: parsed.data.status
     });
+    await syncGlobalIncidentAnnouncement({
+      organizationId: locals.organizationId,
+      incidentId: params.id
+    });
 
     return { ok: true };
   },
@@ -85,6 +94,10 @@ export const actions: Actions = {
       incidentId: params.id,
       severity: parsed.data.severity
     });
+    await syncGlobalIncidentAnnouncement({
+      organizationId: locals.organizationId,
+      incidentId: params.id
+    });
 
     return { ok: true };
   },
@@ -101,6 +114,31 @@ export const actions: Actions = {
       organizationId: locals.organizationId,
       incidentId: params.id,
       memberId: parsed.data.memberId
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId: locals.organizationId,
+      incidentId: params.id
+    });
+
+    return { ok: true };
+  },
+  assignComms: async ({ request, params, locals }) => {
+    const parsed = assignCommsSchema.safeParse({
+      memberId: (await request.formData()).get('memberId')
+    });
+
+    if (!parsed.success) {
+      return fail(400, { error: parsed.error.flatten() });
+    }
+
+    await incidentService.assignCommsLead({
+      organizationId: locals.organizationId,
+      incidentId: params.id,
+      memberId: parsed.data.memberId
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId: locals.organizationId,
+      incidentId: params.id
     });
 
     return { ok: true };
@@ -127,6 +165,10 @@ export const actions: Actions = {
         impact: {}
       }
     });
+    await syncGlobalIncidentAnnouncement({
+      organizationId: locals.organizationId,
+      incidentId: params.id
+    });
 
     return { ok: true };
   },
@@ -150,11 +192,19 @@ export const actions: Actions = {
       incidentId: params.id,
       followUps
     });
+    await syncGlobalIncidentAnnouncement({
+      organizationId: locals.organizationId,
+      incidentId: params.id
+    });
 
     return { ok: true };
   },
   ack: async ({ params, locals }) => {
     await acknowledgeIncidentEscalation({
+      organizationId: locals.organizationId,
+      incidentId: params.id
+    });
+    await syncGlobalIncidentAnnouncement({
       organizationId: locals.organizationId,
       incidentId: params.id
     });

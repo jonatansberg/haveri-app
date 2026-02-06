@@ -9,12 +9,14 @@ import {
 } from '$lib/server/db/schema';
 import type {
   AddEventInput,
+  AssignCommsLeadInput,
   AssignLeadInput,
   ChangeSeverityInput,
   CloseIncidentInput,
   DeclareIncidentInput,
   IncidentService,
   ResolveIncidentInput,
+  SetAnnouncementRefsInput,
   UpdateStatusInput
 } from '$lib/server/domain/contracts';
 import { assertValidStatusTransition } from '$lib/server/domain/state-machine';
@@ -87,8 +89,11 @@ export class IncidentServiceImpl implements IncidentService {
           facilityId: input.facilityId,
           areaId: input.areaId ?? null,
           assignedToMemberId: input.assignedToMemberId ?? null,
+          commsLeadMemberId: input.commsLeadMemberId ?? null,
           chatPlatform: input.chatPlatform,
           chatChannelRef: input.chatChannelRef,
+          globalChannelRef: input.globalChannelRef ?? null,
+          globalMessageRef: input.globalMessageRef ?? null,
           tags: input.tags ?? []
         })
         .returning();
@@ -125,7 +130,9 @@ export class IncidentServiceImpl implements IncidentService {
             severity: input.severity,
             facilityId: input.facilityId,
             areaId: input.areaId ?? null,
-            assetIds: input.assetIds ?? []
+            assetIds: input.assetIds ?? [],
+            responsibleLeadMemberId: input.assignedToMemberId ?? null,
+            commsLeadMemberId: input.commsLeadMemberId ?? null
           },
           rawSourcePayload: input.rawSourcePayload ?? null
         }),
@@ -157,8 +164,11 @@ export class IncidentServiceImpl implements IncidentService {
         facilityId: incident.facilityId,
         areaId: incident.areaId,
         assignedToMemberId: incident.assignedToMemberId,
+        commsLeadMemberId: incident.commsLeadMemberId,
         chatPlatform: incident.chatPlatform,
         chatChannelRef: incident.chatChannelRef,
+        globalChannelRef: incident.globalChannelRef,
+        globalMessageRef: incident.globalMessageRef,
         tags: incident.tags
       };
     });
@@ -223,6 +233,48 @@ export class IncidentServiceImpl implements IncidentService {
       await tx
         .update(incidents)
         .set({ assignedToMemberId: input.memberId })
+        .where(
+          and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, input.incidentId))
+        );
+    });
+  }
+
+  async assignCommsLead(input: AssignCommsLeadInput): Promise<void> {
+    await withTransaction(async (tx) => {
+      await appendIncidentEvent(
+        tx,
+        buildIncidentEvent({
+          organizationId: input.organizationId,
+          incidentId: input.incidentId,
+          eventType: 'comms_assignment',
+          actorType: deriveActorType({
+            actorMemberId: input.actorMemberId ?? null,
+            actorExternalId: null
+          }),
+          actorMemberId: input.actorMemberId ?? null,
+          payload: {
+            commsLeadMemberId: input.memberId
+          }
+        })
+      );
+
+      await tx
+        .update(incidents)
+        .set({ commsLeadMemberId: input.memberId })
+        .where(
+          and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, input.incidentId))
+        );
+    });
+  }
+
+  async setAnnouncementRefs(input: SetAnnouncementRefsInput): Promise<void> {
+    await withTransaction(async (tx) => {
+      await tx
+        .update(incidents)
+        .set({
+          globalChannelRef: input.globalChannelRef ?? null,
+          globalMessageRef: input.globalMessageRef ?? null
+        })
         .where(
           and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, input.incidentId))
         );

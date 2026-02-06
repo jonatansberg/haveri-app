@@ -5,6 +5,7 @@ import {
   escalationPolicySteps,
   facilities,
   members,
+  organizationChatSettings,
   organizations,
   teams
 } from './schema';
@@ -63,6 +64,23 @@ async function seed(): Promise<void> {
       role: 'supervisor'
     });
   }
+
+  await db
+    .insert(organizationChatSettings)
+    .values({
+      organizationId: defaultOrgId,
+      platform: 'teams',
+      globalIncidentChannelRef: process.env['TEAMS_GLOBAL_INCIDENT_CHANNEL'] ?? 'haveri-incidents',
+      autoCreateIncidentChannel: true
+    })
+    .onConflictDoUpdate({
+      target: [organizationChatSettings.organizationId, organizationChatSettings.platform],
+      set: {
+        globalIncidentChannelRef: process.env['TEAMS_GLOBAL_INCIDENT_CHANNEL'] ?? 'haveri-incidents',
+        autoCreateIncidentChannel: true,
+        updatedAt: new Date().toISOString()
+      }
+    });
 
   await db
     .insert(escalationPolicies)

@@ -4,24 +4,22 @@ import { getOrganizationId, requireUser } from '$lib/server/auth-utils';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
 import { syncGlobalIncidentAnnouncement } from '$lib/server/services/incident-workflow-service';
 import { incidentService } from '$lib/server/services/incident-service';
-import { incidentStatuses } from '$lib/shared/domain';
 import type { RequestHandler } from './$types';
 
 const payloadSchema = z.object({
-  status: z.enum(incidentStatuses)
+  memberId: z.string().uuid()
 });
 
 export const POST: RequestHandler = async (event) => {
-  const user = requireUser(event);
+  requireUser(event);
 
   try {
     const payload = payloadSchema.parse(await readJson<unknown>(event.request));
 
-    await incidentService.updateStatus({
+    await incidentService.assignCommsLead({
       organizationId: getOrganizationId(event),
       incidentId: event.params.id,
-      newStatus: payload.status,
-      actorExternalId: user.id
+      memberId: payload.memberId
     });
     await syncGlobalIncidentAnnouncement({
       organizationId: getOrganizationId(event),

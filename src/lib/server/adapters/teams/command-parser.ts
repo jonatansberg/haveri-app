@@ -6,6 +6,8 @@ export type TeamsCommand =
       type: 'declare';
       severity: IncidentSeverity;
       title: string;
+      responsibleLeadRef?: string;
+      commsLeadRef?: string;
     }
   | {
       type: 'resolve';
@@ -28,6 +30,40 @@ export type TeamsCommand =
 
 const severitySet = new Set<string>(incidentSeverities);
 const statusSet = new Set<string>(incidentStatuses);
+const responsibleLeadRegex = /^@resp:(.+)$/i;
+const commsLeadRegex = /^@comms:(.+)$/i;
+
+function parseRoleRefs(tokens: string[]): {
+  cleanedTokens: string[];
+  responsibleLeadRef?: string;
+  commsLeadRef?: string;
+} {
+  const cleanedTokens: string[] = [];
+  let responsibleLeadRef: string | undefined;
+  let commsLeadRef: string | undefined;
+
+  for (const token of tokens) {
+    const responsibleMatch = responsibleLeadRegex.exec(token);
+    if (responsibleMatch?.[1]) {
+      responsibleLeadRef = responsibleMatch[1];
+      continue;
+    }
+
+    const commsMatch = commsLeadRegex.exec(token);
+    if (commsMatch?.[1]) {
+      commsLeadRef = commsMatch[1];
+      continue;
+    }
+
+    cleanedTokens.push(token);
+  }
+
+  return {
+    cleanedTokens,
+    ...(responsibleLeadRef ? { responsibleLeadRef } : {}),
+    ...(commsLeadRef ? { commsLeadRef } : {})
+  };
+}
 
 export function parseTeamsCommand(text: string): TeamsCommand | null {
   const trimmed = text.trim();
@@ -44,7 +80,8 @@ export function parseTeamsCommand(text: string): TeamsCommand | null {
       return { type: 'unknown', raw: trimmed };
     }
 
-    const title = titleParts.join(' ').trim();
+    const roles = parseRoleRefs(titleParts);
+    const title = roles.cleanedTokens.join(' ').trim();
     if (!title) {
       return { type: 'unknown', raw: trimmed };
     }
@@ -52,7 +89,9 @@ export function parseTeamsCommand(text: string): TeamsCommand | null {
     return {
       type: 'declare',
       severity: severityRaw.toUpperCase() as IncidentSeverity,
-      title
+      title,
+      ...(roles.responsibleLeadRef ? { responsibleLeadRef: roles.responsibleLeadRef } : {}),
+      ...(roles.commsLeadRef ? { commsLeadRef: roles.commsLeadRef } : {})
     };
   }
 

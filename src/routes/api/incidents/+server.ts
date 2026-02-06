@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { getOrganizationId, requireUser } from '$lib/server/auth-utils';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
 import { listIncidents } from '$lib/server/services/incident-queries';
-import { incidentService } from '$lib/server/services/incident-service';
-import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
+import { declareIncidentWithWorkflow } from '$lib/server/services/incident-workflow-service';
 import { incidentSeverities } from '$lib/shared/domain';
 import type { RequestHandler } from './$types';
 
@@ -15,9 +14,10 @@ const declareIncidentSchema = z.object({
   areaId: z.string().uuid().optional().nullable(),
   assetIds: z.array(z.string().uuid()).optional(),
   assignedToMemberId: z.string().uuid().optional().nullable(),
+  commsLeadMemberId: z.string().uuid().optional().nullable(),
   tags: z.array(z.string()).optional(),
-  chatPlatform: z.string().default('web'),
-  chatChannelRef: z.string().default('web-dashboard')
+  chatPlatform: z.enum(['teams', 'web']).default('teams'),
+  sourceChannelRef: z.string().optional().nullable()
 });
 
 export const GET: RequestHandler = async (event) => {
@@ -38,31 +38,23 @@ export const POST: RequestHandler = async (event) => {
     const rawBody = await readJson<unknown>(event.request);
     const body = declareIncidentSchema.parse(rawBody);
 
-    const incident = await incidentService.declareIncident({
+    const declared = await declareIncidentWithWorkflow({
       organizationId: getOrganizationId(event),
       title: body.title,
       severity: body.severity,
       declaredByMemberId: null,
       facilityId: body.facilityId,
       areaId: body.areaId ?? null,
-      assignedToMemberId: body.assignedToMemberId ?? null,
+      responsibleLeadMemberId: body.assignedToMemberId ?? null,
+      commsLeadMemberId: body.commsLeadMemberId ?? null,
       chatPlatform: body.chatPlatform,
-      chatChannelRef: body.chatChannelRef,
+      sourceChannelRef: body.sourceChannelRef ?? null,
       actorExternalId: user.id,
       ...(body.assetIds ? { assetIds: body.assetIds } : {}),
       ...(body.tags ? { tags: body.tags } : {})
     });
 
-    try {
-      await scheduleEscalationForIncident({
-        organizationId: getOrganizationId(event),
-        incidentId: incident.id
-      });
-    } catch (error) {
-      console.error('Failed to schedule escalation', error);
-    }
-
-    return json({ incident }, { status: 201 });
+    return json({ incidentId: declared.incidentId, channelRef: declared.channelRef }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return json({ error: error.flatten() }, { status: 400 });

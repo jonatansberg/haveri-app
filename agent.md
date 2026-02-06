@@ -12,17 +12,20 @@ Track implementation decisions, current progress, verification status, and next 
 - Keep project docs updated as implementation evolves.
 - Use Better Auth for authentication.
 - Assume managed PostgreSQL (Fly or Supabase).
+- Keep a clear incident workflow with static role structure for now.
+- On incident creation, create incident channel + post/update a global incident channel card.
 
 ## Current Status
-- MVP implementation complete across backend, chat adapter, queue worker, and web UI.
+- MVP implementation completed and currently being refined with incident workflow/channel sync behavior.
 - Implemented:
   - Better Auth + protected SvelteKit app/API routes.
   - Event-sourced incident lifecycle services + projection updates.
   - Incident, follow-up, escalation APIs.
   - Teams webhook adapter with idempotency and command parsing.
-  - BullMQ-based escalation scheduler + worker.
-  - Dashboard + incident detail timeline UI and action forms.
-  - Setup/ops/command-event docs.
+  - Static incident workflow (`v1-static`): required responsible lead + optional comms lead.
+  - Organization chat settings + configurable global incident channel reference.
+  - Teams incident channel creation placeholder + global incident card post/update placeholder.
+  - Dashboard + incident detail UI for responsible/comms assignment and workflow state visibility.
 
 ## Decisions
 - DB: Drizzle ORM over PostgreSQL.
@@ -32,7 +35,8 @@ Track implementation decisions, current progress, verification status, and next 
 - Multi-tenant context: `organizationId` from `x-org-id` header, default `DEFAULT_ORG_ID`.
 
 ## Verification Snapshot
-- Last full verify run: PASS (`check`, `lint`, `test`) after UI + docs updates.
+- Last full verify run: PASS (`check`, `lint`, `test`) after workflow/channel updates.
 
 ## Remaining
-- None for MVP scope; ready for user validation and runtime testing with real Postgres/Redis and Teams payloads.
+- Wire placeholder Teams channel/card operations to real Teams APIs.
+- Add deeper integration tests around incident workflow + global announcement synchronization.

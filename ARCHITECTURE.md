@@ -62,7 +62,10 @@
 │  area: Area (optional)                                           │
 │  assets: Asset[] (optional)                                      │
 │  assigned_to: Member (incident lead)                             │
+│  comms_lead: Member (optional stakeholder comms owner)           │
 │  chat_channel_ref: string (platform-specific channel ID)         │
+│  global_channel_ref: string (optional platform channel ref)       │
+│  global_message_ref: string (optional platform message/card ref)  │
 │  tags: string[]                                                  │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐   │
@@ -74,6 +77,7 @@
 │  │  ├── severity_change                                       │   │
 │  │  ├── escalation     — new people pulled in                 │   │
 │  │  ├── assignment     — lead changed                         │   │
+│  │  ├── comms_assignment— comms owner changed                 │   │
 │  │  ├── action_taken   — explicit "I did X" log entries       │   │
 │  │  ├── attachment     — photos, sensor readings, files       │   │
 │  │  ├── bot_guidance   — SOP suggestion, similar incident     │   │
@@ -349,12 +353,13 @@ In Phase 1, you capture this via the bot's triage questions. In Phase 2, the LLM
 The minimum loop that proves value:
 
 1. `/incident` command in Teams → declares incident, creates channel, starts timeline
-2. Bot posts triage card: severity, area, brief description
-3. All messages in channel auto-logged as timeline events
-4. Escalation policy fires notifications based on severity
-5. `/resolve` command → bot prompts for summary, creates incident record
-6. Web dashboard shows incident list and timeline view
-7. Follow-up actions can be created and assigned at close
+2. Bot posts triage/workflow card with responsible lead (+ optional comms lead)
+3. Bot posts/updates global incident summary card in configurable incident channel
+4. All messages in channel auto-logged as timeline events
+5. Escalation policy fires notifications based on severity
+6. `/resolve` command → bot prompts for summary, creates incident record
+7. Web dashboard shows incident list and timeline view
+8. Follow-up actions can be created and assigned at close
 
 Everything else — SOP retrieval, AI summaries, trend detection, analytics — waits for Phase 2. Get the basic loop right first.
 
@@ -368,6 +373,9 @@ Implemented in this codebase:
 - Event-sourced incident service with append-only timeline events and derived current-state projection.
 - Follow-up tracker APIs and status updates.
 - Teams webhook adapter with command parsing and idempotency handling.
+- Static incident workflow model (`v1-static`) with required responsible lead and optional comms lead.
+- Organization-level Teams chat settings for global incident channel and incident channel creation behavior.
+- Incident workflow orchestration service that creates channels, posts global card, and syncs card on incident state changes.
 - Escalation policy selection, BullMQ job scheduling, and worker-based escalation step execution.
 - Web dashboard for incident declaration/listing and incident detail timeline with control actions.
 
