@@ -14,14 +14,16 @@ Track implementation decisions, current progress, verification status, and next 
 - Assume managed PostgreSQL (Fly or Supabase).
 
 ## Current Status
-- Baseline scaffold complete (SvelteKit + Drizzle schema/migrations + strict TS + ESLint + Vitest).
-- Better Auth dependencies aligned with Drizzle (`drizzle-orm@0.45.x`, `drizzle-kit@0.31.x`, `better-auth@1.4.x`).
-- Better Auth integrated:
-  - Drizzle auth tables in schema + SQL migration.
-  - `src/lib/server/auth.ts` configured with Drizzle adapter and SvelteKit cookie plugin.
-  - `src/hooks.server.ts` sets `locals.user/session` and protects non-public APIs.
-  - Login/register pages added.
-- Next in progress: event-sourced incident/follow-up/escalation services + API endpoints.
+- Baseline scaffold complete.
+- Better Auth integration complete (hooks, locals, login/register, auth tables).
+- Incident domain services complete for:
+  - event append + projection updates,
+  - declare/status/severity/assignment/resolve/close,
+  - incident summary writes,
+  - follow-up creation + status updates,
+  - escalation acknowledgment runtime updates.
+- API routes implemented for incidents and follow-ups.
+- Next in progress: Teams adapter endpoints + command parsing + BullMQ escalation scheduling/worker.
 
 ## Decisions
 - DB: Drizzle ORM over PostgreSQL.
@@ -31,12 +33,11 @@ Track implementation decisions, current progress, verification status, and next 
 - Multi-tenant context: `organizationId` resolved from `x-org-id` header, defaulting to `DEFAULT_ORG_ID`.
 
 ## Verification Snapshot
-- Last full verify run: PASS (`check`, `lint`, `test`) after Better Auth integration.
+- Last full verify run: PASS (`check`, `lint`, `test`) after incident service/API implementation.
 
 ## Next Actions
-1. Implement incident service and event store with Drizzle transactions.
-2. Add incident/follow-up API routes (auth protected).
-3. Add Teams webhook command adapter with idempotency.
-4. Implement BullMQ escalation scheduling + worker.
-5. Build dashboard + incident detail timeline UI.
-6. Re-run verify after each slice and commit in small increments.
+1. Implement Teams webhook adapter with idempotency and `/incident` + `/resolve` command parsing.
+2. Add escalation scheduling (policy selection + queue jobs + worker processing).
+3. Build dashboard/list/detail UI against the new APIs.
+4. Add unit tests for command parsing and escalation condition matching.
+5. Update architecture/setup docs to reflect implemented endpoints and runtime workflow.

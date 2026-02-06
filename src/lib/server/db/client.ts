@@ -16,7 +16,7 @@ export const pool = new Pool({
 export const db = drizzle(pool, { schema });
 
 export type DbClient = typeof db;
-type DbTransaction = Parameters<DbClient['transaction']>[0] extends (
+export type DbTransaction = Parameters<DbClient['transaction']>[0] extends (
   tx: infer T
 ) => Promise<unknown>
   ? T

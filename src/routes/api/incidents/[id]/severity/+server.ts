@@ -1,0 +1,33 @@
+import { json } from '@sveltejs/kit';
+import { z } from 'zod';
+import { getOrganizationId, requireUser } from '$lib/server/auth-utils';
+import { readJson, toErrorResponse } from '$lib/server/api/http';
+import { incidentService } from '$lib/server/services/incident-service';
+import { incidentSeverities } from '$lib/shared/domain';
+import type { RequestHandler } from './$types';
+
+const payloadSchema = z.object({
+  severity: z.enum(incidentSeverities)
+});
+
+export const POST: RequestHandler = async (event) => {
+  requireUser(event);
+
+  try {
+    const payload = payloadSchema.parse(await readJson<unknown>(event.request));
+
+    await incidentService.changeSeverity({
+      organizationId: getOrganizationId(event),
+      incidentId: event.params.id,
+      severity: payload.severity
+    });
+
+    return json({ ok: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return json({ error: error.flatten() }, { status: 400 });
+    }
+
+    return toErrorResponse(error);
+  }
+};
