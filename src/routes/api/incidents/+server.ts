@@ -4,6 +4,7 @@ import { getOrganizationId, requireUser } from '$lib/server/auth-utils';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
 import { listIncidents } from '$lib/server/services/incident-queries';
 import { incidentService } from '$lib/server/services/incident-service';
+import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
 import { incidentSeverities } from '$lib/shared/domain';
 import type { RequestHandler } from './$types';
 
@@ -51,6 +52,15 @@ export const POST: RequestHandler = async (event) => {
       ...(body.assetIds ? { assetIds: body.assetIds } : {}),
       ...(body.tags ? { tags: body.tags } : {})
     });
+
+    try {
+      await scheduleEscalationForIncident({
+        organizationId: getOrganizationId(event),
+        incidentId: incident.id
+      });
+    } catch (error) {
+      console.error('Failed to schedule escalation', error);
+    }
 
     return json({ incident }, { status: 201 });
   } catch (error) {
