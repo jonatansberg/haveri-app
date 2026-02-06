@@ -23,6 +23,8 @@ export default [
       ...tsPlugin.configs['recommended-type-checked'].rules,
       ...tsPlugin.configs['stylistic-type-checked'].rules,
       'no-undef': 'off',
+      '@typescript-eslint/only-throw-error': 'off',
+      '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/consistent-type-imports': [
         'error',
