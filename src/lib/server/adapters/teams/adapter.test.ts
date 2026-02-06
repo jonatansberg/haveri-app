@@ -1,0 +1,194 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockDbSelect = vi.hoisted(() => vi.fn());
+const mockAcknowledgeIncidentEscalation = vi.hoisted(() => vi.fn());
+const mockFindIncidentByChannel = vi.hoisted(() => vi.fn());
+const mockDeclareIncidentWithWorkflow = vi.hoisted(() => vi.fn());
+const mockSyncGlobalIncidentAnnouncement = vi.hoisted(() => vi.fn());
+const mockResolveMemberByNameHint = vi.hoisted(() => vi.fn());
+const mockResolveMemberByPlatformIdentity = vi.hoisted(() => vi.fn());
+const mockIncidentService = vi.hoisted(() => ({
+  resolveIncident: vi.fn(),
+  updateStatus: vi.fn(),
+  addEvent: vi.fn()
+}));
+
+vi.mock('$lib/server/db/client', () => ({
+  db: { select: mockDbSelect }
+}));
+
+vi.mock('$lib/server/services/escalation-service', () => ({
+  acknowledgeIncidentEscalation: mockAcknowledgeIncidentEscalation
+}));
+
+vi.mock('$lib/server/services/incident-queries', () => ({
+  findIncidentByChannel: mockFindIncidentByChannel
+}));
+
+vi.mock('$lib/server/services/incident-workflow-service', () => ({
+  declareIncidentWithWorkflow: mockDeclareIncidentWithWorkflow,
+  syncGlobalIncidentAnnouncement: mockSyncGlobalIncidentAnnouncement
+}));
+
+vi.mock('$lib/server/services/member-identity-service', () => ({
+  resolveMemberByNameHint: mockResolveMemberByNameHint,
+  resolveMemberByPlatformIdentity: mockResolveMemberByPlatformIdentity
+}));
+
+vi.mock('$lib/server/services/incident-service', () => ({
+  incidentService: mockIncidentService
+}));
+
+import { handleTeamsInbound } from './adapter';
+
+function selectChain(rows: unknown[]) {
+  const chain = {
+    from: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn()
+  };
+
+  chain.from.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockResolvedValue(rows);
+
+  return chain;
+}
+
+describe('teams adapter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('handles /incident command and maps workflow roles', async () => {
+    mockDbSelect.mockReturnValueOnce(selectChain([{ id: 'facility-1' }]));
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveMemberByNameHint
+      .mockResolvedValueOnce({ memberId: 'member-resp', name: 'Alex' })
+      .mockResolvedValueOnce({ memberId: 'member-comms', name: 'Sara' });
+    mockDeclareIncidentWithWorkflow.mockResolvedValue({
+      incidentId: 'inc-1',
+      channelRef: 'teams:channel:inc-1',
+      globalChannelRef: 'teams:global:haveri'
+    });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-1',
+      type: 'message',
+      text: '/incident SEV1 @resp:Alex @comms:Sara Line is down',
+      channelId: 'teams:source:1',
+      userId: 'teams-user-1',
+      userName: 'Operator'
+    });
+
+    expect(mockDeclareIncidentWithWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        title: 'Line is down',
+        severity: 'SEV1',
+        facilityId: 'facility-1',
+        declaredByMemberId: 'member-actor',
+        responsibleLeadMemberId: 'member-resp',
+        commsLeadMemberId: 'member-comms'
+      })
+    );
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_declared',
+      incidentId: 'inc-1',
+      incidentChannelRef: 'teams:channel:inc-1',
+      globalChannelRef: 'teams:global:haveri'
+    });
+  });
+
+  it('handles /status command and syncs global announcement', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-2',
+      type: 'message',
+      text: '/status inc-1 MITIGATED',
+      channelId: 'teams:incident:1',
+      userId: 'teams-user-1'
+    });
+
+    expect(mockIncidentService.updateStatus).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1',
+      newStatus: 'MITIGATED',
+      actorMemberId: 'member-actor',
+      actorExternalId: 'teams-user-1'
+    });
+    expect(mockSyncGlobalIncidentAnnouncement).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1'
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_status_updated',
+      incidentId: 'inc-1',
+      status: 'MITIGATED'
+    });
+  });
+
+  it('captures non-command messages for linked incident channels', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue(null);
+    mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-99', title: 'Existing incident' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-3',
+      type: 'message',
+      text: 'Operator confirms pressure drop',
+      channelId: 'teams:incident:99',
+      userId: 'teams-user-3',
+      userName: 'Operator 3',
+      timestamp: '2026-02-06T22:00:00.000Z'
+    });
+
+    expect(mockIncidentService.addEvent).toHaveBeenCalledTimes(1);
+    const addEventCall = mockIncidentService.addEvent.mock.calls[0]?.[0] as {
+      event: {
+        organizationId: string;
+        incidentId: string;
+        eventType: string;
+        actorType: string;
+        actorMemberId: string | null;
+        sourcePlatform: string;
+        sourceEventId: string;
+      };
+    };
+    expect(addEventCall.event.organizationId).toBe('org-1');
+    expect(addEventCall.event.incidentId).toBe('inc-99');
+    expect(addEventCall.event.eventType).toBe('message');
+    expect(addEventCall.event.actorType).toBe('integration');
+    expect(addEventCall.event.actorMemberId).toBeNull();
+    expect(addEventCall.event.sourcePlatform).toBe('teams');
+    expect(addEventCall.event.sourceEventId).toBe('msg-3');
+    expect(result).toEqual({
+      ok: true,
+      action: 'message_captured',
+      incidentId: 'inc-99'
+    });
+  });
+
+  it('returns help for unknown commands', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-4',
+      type: 'message',
+      text: '/incident bad',
+      channelId: 'teams:incident:77',
+      userId: 'teams-user-1'
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      action: 'unknown_command',
+      help:
+        'Supported commands: /incident <SEV1|SEV2|SEV3> <title> [@resp:Name] [@comms:Name], /status <id> <STATUS>, /resolve <id> <summary>, /ack <id>'
+    });
+  });
+});

@@ -16,7 +16,7 @@ Track implementation decisions, current progress, verification status, and next 
 - On incident creation, create incident channel + post/update a global incident channel card.
 
 ## Current Status
-- MVP implementation completed and currently being refined with incident workflow/channel sync behavior.
+- MVP implementation completed and incident workflow/channel sync behavior now has expanded automated coverage.
 - Implemented:
   - Better Auth + protected SvelteKit app/API routes.
   - Event-sourced incident lifecycle services + projection updates.
@@ -26,6 +26,7 @@ Track implementation decisions, current progress, verification status, and next 
   - Organization chat settings + configurable global incident channel reference.
   - Teams incident channel creation placeholder + global incident card post/update placeholder.
   - Dashboard + incident detail UI for responsible/comms assignment and workflow state visibility.
+  - Test coverage pass with unit + integration suites for parser, adapter, chat-ops, workflow service, and incident API routes.
 
 ## Decisions
 - DB: Drizzle ORM over PostgreSQL.
@@ -35,8 +36,10 @@ Track implementation decisions, current progress, verification status, and next 
 - Multi-tenant context: `organizationId` from `x-org-id` header, default `DEFAULT_ORG_ID`.
 
 ## Verification Snapshot
-- Last full verify run: PASS (`check`, `lint`, `test`) after workflow/channel updates.
+- Last full verify run: PASS (`check`, `lint`, `test`) after coverage expansion.
+- Last coverage run: PASS (`npm run test:coverage`) with thresholds enforced in `vitest.config.ts` for incident/chat workflow modules.
 
 ## Remaining
 - Wire placeholder Teams channel/card operations to real Teams APIs.
 - Add deeper integration tests around incident workflow + global announcement synchronization.
+- Add integration tests that run against a real PostgreSQL test database for end-to-end event-store behavior.

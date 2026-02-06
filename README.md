@@ -40,6 +40,8 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 ## Verification
 - Run full quality gate:
   - `npm run verify`
+- Run coverage for incident/chat workflow modules:
+  - `npm run test:coverage`
 
 ## Key API Endpoints
 - `POST /api/chat/teams/webhook`
