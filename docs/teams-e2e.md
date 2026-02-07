@@ -4,17 +4,21 @@ This project includes a Teams app-package generator and a tenant-tailored checkl
 
 ## 1. Configure environment
 
-Set these in `.env`:
+Set runtime values in `.env`:
 
-- `TEAMS_APP_BASE_URL`: Public HTTPS URL for your running Haveri app (for example, your Fly URL or dev tunnel URL).
-- `TEAMS_MANIFEST_APP_ID`: Teams app manifest id (GUID).
-- `TEAMS_BOT_APP_ID`: Entra/Bot app id used by the Teams bot (GUID).
 - `TEAMS_INCIDENT_TEAM_ID`: Team id where incident channels are created.
 - `TEAMS_GLOBAL_INCIDENT_CHANNEL`: Global channel reference. Preferred formats:
   - `teams|<teamId>|<channelId>`
   - `<teamId>/<channelId>`
   - `<channelId>` (uses `TEAMS_INCIDENT_TEAM_ID`)
 - `TEAMS_TENANT_ID`, `TEAMS_CLIENT_ID`, `TEAMS_CLIENT_SECRET`: Graph auth for channel/card operations.
+
+Set manifest-generation values in `.env.teams-package` (copy from `.env.teams-package.example`):
+
+- `TEAMS_APP_BASE_URL`: Public HTTPS URL for your running Haveri app (for example, your Fly URL or dev tunnel URL).
+- `TEAMS_MANIFEST_APP_ID`: Teams app manifest id (GUID).
+- `TEAMS_BOT_APP_ID`: Entra/Bot app id used by the Teams bot (GUID).
+- Other `TEAMS_APP_*` metadata fields.
 
 ## 2. Generate checklist for your tenant
 

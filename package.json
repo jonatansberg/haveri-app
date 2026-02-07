@@ -17,8 +17,8 @@
     "worker": "tsx src/lib/server/queue/worker.ts",
     "db:migrate": "tsx src/lib/server/db/migrate.ts",
     "db:seed": "tsx src/lib/server/db/seed.ts",
-    "teams:build-package": "node --env-file .env --import tsx src/scripts/teams/build-app-package.ts",
-    "teams:check": "node --env-file .env --import tsx src/scripts/teams/print-e2e-checklist.ts",
+    "teams:build-package": "sh -c 'if [ -f .env.teams-package ]; then node --env-file .env --env-file .env.teams-package --import tsx src/scripts/teams/build-app-package.ts; else node --env-file .env --import tsx src/scripts/teams/build-app-package.ts; fi'",
+    "teams:check": "sh -c 'if [ -f .env.teams-package ]; then node --env-file .env --env-file .env.teams-package --import tsx src/scripts/teams/print-e2e-checklist.ts; else node --env-file .env --import tsx src/scripts/teams/print-e2e-checklist.ts; fi'",
     "teams:zip-package": "cd teams/appPackage && zip -r ../haveri-teams-app.zip manifest.json color.png outline.png"
   },
   "dependencies": {

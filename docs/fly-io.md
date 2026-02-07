@@ -68,14 +68,11 @@ fly secrets set \
   BETTER_AUTH_URL="https://console.haveri.app" \
   BETTER_AUTH_SECRET="<long-random-secret>" \
   BETTER_AUTH_TRUSTED_ORIGINS="https://console.haveri.app" \
-  TEAMS_APP_BASE_URL="https://console.haveri.app" \
   TEAMS_TENANT_ID="<tenant-guid>" \
   TEAMS_CLIENT_ID="<client-guid>" \
   TEAMS_CLIENT_SECRET="<client-secret>" \
   TEAMS_INCIDENT_TEAM_ID="<team-guid>" \
-  TEAMS_GLOBAL_INCIDENT_CHANNEL="teams|<team-guid>|<channel-id>" \
-  TEAMS_MANIFEST_APP_ID="<app-guid>" \
-  TEAMS_BOT_APP_ID="<bot-guid>"
+  TEAMS_GLOBAL_INCIDENT_CHANNEL="teams|<team-guid>|<channel-id>"
 ```
 
 ## 5. Deploy app

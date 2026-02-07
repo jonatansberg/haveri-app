@@ -11,14 +11,15 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 
 ## Local Setup
 1. Copy `.env.example` to `.env` and set values.
-2. Install dependencies:
+2. Optional for Teams manifest packaging: copy `.env.teams-package.example` to `.env.teams-package`.
+3. Install dependencies:
    - `npm install`
-3. Run migrations and seed:
+4. Run migrations and seed:
    - `npm run db:migrate`
    - `npm run db:seed`
-4. Start app:
+5. Start app:
    - `npm run dev`
-5. Start escalation worker in another terminal:
+6. Start escalation worker in another terminal:
    - `npm run worker`
 
 ## Managed Postgres (Fly/Supabase)
@@ -42,15 +43,17 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 - Workflow rules are static today (`v1-static`) and intended to become configuration-driven later.
 
 ## Teams Config
+Runtime-only variables (used by server/worker while app is running):
 - `TEAMS_GLOBAL_INCIDENT_CHANNEL`: default global announcement channel reference.
 - `TEAMS_INCIDENT_CHANNEL_PREFIX`: prefix for generated incident channel names.
 - `TEAMS_INCIDENT_TEAM_ID`: Teams team id where incident channels are created.
 - `TEAMS_TENANT_ID` / `TEAMS_CLIENT_ID` / `TEAMS_CLIENT_SECRET`: Graph client-credentials auth for channel/message operations.
 - `TEAMS_DELEGATED_ACCESS_TOKEN`: optional override token for local/debug use (takes precedence over client credentials).
 - `TEAMS_GRAPH_BASE_URL_ROOT`: Graph root URL override for sovereign clouds.
-- `TEAMS_APP_BASE_URL`: public HTTPS URL used for Teams bot webhook and manifest generation.
-- `TEAMS_MANIFEST_APP_ID`: Teams app manifest id (GUID).
-- `TEAMS_BOT_APP_ID`: bot app id (GUID) used in Teams manifest.
+
+Tooling-only variables (manifest generation only, not required at runtime):
+- `TEAMS_APP_BASE_URL`, `TEAMS_MANIFEST_APP_ID`, `TEAMS_BOT_APP_ID`, and other `TEAMS_APP_*` metadata.
+- Put these in `.env.teams-package` (see `.env.teams-package.example`) to keep runtime `.env` minimal.
 
 Channel reference formats accepted for `TEAMS_GLOBAL_INCIDENT_CHANNEL`:
 - `<channelId>` (uses `TEAMS_INCIDENT_TEAM_ID`)
