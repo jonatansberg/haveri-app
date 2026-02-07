@@ -34,6 +34,8 @@ Track implementation decisions, current progress, verification status, and next 
 - Queue: BullMQ + Redis worker process.
 - Auth: Better Auth email/password for MVP.
 - Multi-tenant context: `organizationId` from `x-org-id` header, default `DEFAULT_ORG_ID`.
+- Documentation reference workflow: use Context7 MCP for official SDK/library docs and API examples.
+- Code-reference workflow: use grep MCP to find in-repo usage examples and implementation patterns before adding new code.
 
 ## Verification Snapshot
 - Last full verify run: PASS (`check`, `lint`, `test`) after coverage expansion.
