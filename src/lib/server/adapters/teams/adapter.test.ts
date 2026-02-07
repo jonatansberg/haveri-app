@@ -133,6 +133,66 @@ describe('teams adapter', () => {
     });
   });
 
+  it('handles /resolve command and syncs global announcement', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-2b',
+      type: 'message',
+      text: '/resolve inc-1 Cleared obstruction and restarted',
+      channelId: 'teams:incident:1',
+      userId: 'teams-user-1'
+    });
+
+    expect(mockIncidentService.resolveIncident).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1',
+      actorMemberId: 'member-actor',
+      summary: {
+        whatHappened: 'Cleared obstruction and restarted',
+        rootCause: 'Unknown (resolved through chat command)',
+        resolution: 'Cleared obstruction and restarted',
+        impact: {}
+      }
+    });
+    expect(mockSyncGlobalIncidentAnnouncement).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1'
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_resolved',
+      incidentId: 'inc-1'
+    });
+  });
+
+  it('handles /ack command and syncs global announcement', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-2c',
+      type: 'message',
+      text: '/ack inc-1',
+      channelId: 'teams:incident:1',
+      userId: 'teams-user-1'
+    });
+
+    expect(mockAcknowledgeIncidentEscalation).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1',
+      actorMemberId: 'member-actor'
+    });
+    expect(mockSyncGlobalIncidentAnnouncement).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1'
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_acknowledged',
+      incidentId: 'inc-1'
+    });
+  });
+
   it('captures non-command messages for linked incident channels', async () => {
     mockResolveMemberByPlatformIdentity.mockResolvedValue(null);
     mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-99', title: 'Existing incident' });
@@ -170,6 +230,25 @@ describe('teams adapter', () => {
       ok: true,
       action: 'message_captured',
       incidentId: 'inc-99'
+    });
+  });
+
+  it('ignores non-command messages in channels without active incidents', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockFindIncidentByChannel.mockResolvedValue(null);
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-3b',
+      type: 'message',
+      text: 'FYI no incident context',
+      channelId: 'teams:channel:other',
+      userId: 'teams-user-3'
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      action: 'ignored',
+      reason: 'No incident linked to channel'
     });
   });
 

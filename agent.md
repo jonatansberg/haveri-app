@@ -21,12 +21,13 @@ Track implementation decisions, current progress, verification status, and next 
   - Better Auth + protected SvelteKit app/API routes.
   - Event-sourced incident lifecycle services + projection updates.
   - Incident, follow-up, escalation APIs.
-  - Teams webhook adapter with idempotency and command parsing.
+  - Teams webhook adapter with idempotency, command parsing, and native Teams activity payload normalization.
   - Static incident workflow (`v1-static`): required responsible lead + optional comms lead.
   - Organization chat settings + configurable global incident channel reference.
-  - Teams incident channel creation placeholder + global incident card post/update placeholder.
+  - Teams Graph SDK integration for incident channel creation and global adaptive card post/update.
+  - Global incident announcement update fallback: post replacement card when Graph patch is restricted.
   - Dashboard + incident detail UI for responsible/comms assignment and workflow state visibility.
-  - Test coverage pass with unit + integration suites for parser, adapter, chat-ops, workflow service, and incident API routes.
+  - Test coverage pass with unit + integration suites for parser, adapter, chat-ops, graph client, workflow service, and incident API routes.
 
 ## Decisions
 - DB: Drizzle ORM over PostgreSQL.
@@ -42,6 +43,5 @@ Track implementation decisions, current progress, verification status, and next 
 - Last coverage run: PASS (`npm run test:coverage`) with thresholds enforced in `vitest.config.ts` for incident/chat workflow modules.
 
 ## Remaining
-- Wire placeholder Teams channel/card operations to real Teams APIs.
-- Add deeper integration tests around incident workflow + global announcement synchronization.
+- Add deeper integration tests around incident workflow + global announcement synchronization against a live Teams sandbox tenant.
 - Add integration tests that run against a real PostgreSQL test database for end-to-end event-store behavior.

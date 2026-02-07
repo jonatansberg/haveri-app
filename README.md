@@ -36,6 +36,15 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 ## Teams Config
 - `TEAMS_GLOBAL_INCIDENT_CHANNEL`: default global announcement channel reference.
 - `TEAMS_INCIDENT_CHANNEL_PREFIX`: prefix for generated incident channel names.
+- `TEAMS_INCIDENT_TEAM_ID`: Teams team id where incident channels are created.
+- `TEAMS_TENANT_ID` / `TEAMS_CLIENT_ID` / `TEAMS_CLIENT_SECRET`: Graph client-credentials auth for channel/message operations.
+- `TEAMS_DELEGATED_ACCESS_TOKEN`: optional override token for local/debug use (takes precedence over client credentials).
+- `TEAMS_GRAPH_BASE_URL_ROOT`: Graph root URL override for sovereign clouds.
+
+Channel reference formats accepted for `TEAMS_GLOBAL_INCIDENT_CHANNEL`:
+- `<channelId>` (uses `TEAMS_INCIDENT_TEAM_ID`)
+- `<teamId>/<channelId>`
+- `teams|<teamId>|<channelId>`
 
 ## Verification
 - Run full quality gate:
@@ -61,3 +70,9 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 ## Auth
 - Better Auth endpoints are mounted under `/api/auth`.
 - Use `/register` then `/login` in the web UI.
+
+## Teams Notes
+- `POST /api/chat/teams/webhook` accepts both:
+  - Existing simplified payloads (`{ id, type, text, channelId, userId, ... }`)
+  - Native Teams/Bot activity payloads (`from`, `conversation`, `channelData`, etc.)
+- Incident global announcement updates attempt in-place message patch first. If Graph app permissions block patch, Haveri posts a replacement card and persists the new message ref.

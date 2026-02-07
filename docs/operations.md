@@ -21,6 +21,7 @@
   - `organization_id`
   - `platform` (`teams`)
   - `idempotency_key` (event id)
+- Webhook route accepts both simplified and native Teams activity payloads; both normalize to a single internal event envelope before idempotency lookup.
 
 ## Verify Before Commit
 - `npm run verify`

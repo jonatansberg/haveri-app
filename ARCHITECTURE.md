@@ -372,10 +372,11 @@ Implemented in this codebase:
 - Better Auth integration (`/api/auth`) with SvelteKit hooks and protected app/API flows.
 - Event-sourced incident service with append-only timeline events and derived current-state projection.
 - Follow-up tracker APIs and status updates.
-- Teams webhook adapter with command parsing and idempotency handling.
+- Teams webhook adapter with command parsing, idempotency handling, and Teams activity-payload normalization.
 - Static incident workflow model (`v1-static`) with required responsible lead and optional comms lead.
 - Organization-level Teams chat settings for global incident channel and incident channel creation behavior.
-- Incident workflow orchestration service that creates channels, posts global card, and syncs card on incident state changes.
+- Incident workflow orchestration service that creates Teams channels, posts adaptive cards to a global channel, and syncs announcement cards on incident state changes.
+- Teams Graph SDK integration (`@microsoft/teams.graph` + endpoints) for channel creation and message/card operations.
 - Escalation policy selection, BullMQ job scheduling, and worker-based escalation step execution.
 - Web dashboard for incident declaration/listing and incident detail timeline with control actions.
 

@@ -13,3 +13,27 @@ export function getTeamsGlobalIncidentChannel(): string {
 export function getTeamsIncidentChannelPrefix(): string {
   return process.env['TEAMS_INCIDENT_CHANNEL_PREFIX'] ?? 'incident';
 }
+
+export function getTeamsIncidentTeamId(): string | null {
+  return process.env['TEAMS_INCIDENT_TEAM_ID'] ?? null;
+}
+
+export function getTeamsTenantId(): string | null {
+  return process.env['TEAMS_TENANT_ID'] ?? null;
+}
+
+export function getTeamsClientId(): string | null {
+  return process.env['TEAMS_CLIENT_ID'] ?? null;
+}
+
+export function getTeamsClientSecret(): string | null {
+  return process.env['TEAMS_CLIENT_SECRET'] ?? null;
+}
+
+export function getTeamsGraphBaseUrlRoot(): string {
+  return process.env['TEAMS_GRAPH_BASE_URL_ROOT'] ?? 'https://graph.microsoft.com';
+}
+
+export function getTeamsDelegatedAccessToken(): string | null {
+  return process.env['TEAMS_DELEGATED_ACCESS_TOKEN'] ?? null;
+}

@@ -98,7 +98,10 @@ describe('incident-workflow-service', () => {
       }
     });
     mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
-    mockPostTeamsGlobalIncidentCard.mockResolvedValue({ messageRef: 'teams:message:1' });
+    mockPostTeamsGlobalIncidentCard.mockResolvedValue({
+      messageRef: 'teams|team-1|channel-1|message|msg-1',
+      channelRef: 'teams|team-1|channel-1'
+    });
 
     const result = await declareIncidentWithWorkflow({
       organizationId: 'org-1',
@@ -147,8 +150,8 @@ describe('incident-workflow-service', () => {
     expect(mockIncidentService.setAnnouncementRefs).toHaveBeenCalledWith({
       organizationId: 'org-1',
       incidentId: 'inc-1',
-      globalChannelRef: 'teams:global:haveri',
-      globalMessageRef: 'teams:message:1'
+      globalChannelRef: 'teams|team-1|channel-1',
+      globalMessageRef: 'teams|team-1|channel-1|message|msg-1'
     });
     expect(mockScheduleEscalationForIncident).toHaveBeenCalledWith({
       organizationId: 'org-1',
@@ -192,6 +195,10 @@ describe('incident-workflow-service', () => {
       autoCreateIncidentChannel: true
     });
     mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
+    mockUpdateTeamsGlobalIncidentCard.mockResolvedValue({
+      messageRef: 'teams|team-1|channel-haveri|message|msg-77',
+      channelRef: 'teams|team-1|channel-haveri'
+    });
 
     await syncGlobalIncidentAnnouncement({
       organizationId: 'org-1',
@@ -206,8 +213,8 @@ describe('incident-workflow-service', () => {
     expect(mockIncidentService.setAnnouncementRefs).toHaveBeenCalledWith({
       organizationId: 'org-1',
       incidentId: 'inc-77',
-      globalChannelRef: 'teams:global:haveri',
-      globalMessageRef: 'teams:message:77'
+      globalChannelRef: 'teams|team-1|channel-haveri',
+      globalMessageRef: 'teams|team-1|channel-haveri|message|msg-77'
     });
   });
 
@@ -233,7 +240,10 @@ describe('incident-workflow-service', () => {
       autoCreateIncidentChannel: true
     });
     mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
-    mockPostTeamsGlobalIncidentCard.mockResolvedValue({ messageRef: 'teams:message:88' });
+    mockPostTeamsGlobalIncidentCard.mockResolvedValue({
+      messageRef: 'teams|team-1|channel-haveri|message|msg-88',
+      channelRef: 'teams|team-1|channel-haveri'
+    });
 
     await syncGlobalIncidentAnnouncement({
       organizationId: 'org-1',
@@ -247,8 +257,8 @@ describe('incident-workflow-service', () => {
     expect(mockIncidentService.setAnnouncementRefs).toHaveBeenCalledWith({
       organizationId: 'org-1',
       incidentId: 'inc-88',
-      globalChannelRef: 'teams:global:haveri',
-      globalMessageRef: 'teams:message:88'
+      globalChannelRef: 'teams|team-1|channel-haveri',
+      globalMessageRef: 'teams|team-1|channel-haveri|message|msg-88'
     });
   });
 

@@ -212,7 +212,7 @@ export async function declareIncidentWithWorkflow(
     await incidentService.setAnnouncementRefs({
       organizationId: input.organizationId,
       incidentId: incident.id,
-      globalChannelRef,
+      globalChannelRef: globalPost.channelRef,
       globalMessageRef: globalPost.messageRef
     });
   }
@@ -263,18 +263,22 @@ export async function syncGlobalIncidentAnnouncement(input: {
   });
 
   if (detail.incident.globalMessageRef) {
-    await updateTeamsGlobalIncidentCard({
+    const updated = await updateTeamsGlobalIncidentCard({
       channelRef: globalChannelRef,
       messageRef: detail.incident.globalMessageRef,
       card
     });
 
-    if (!detail.incident.globalChannelRef) {
+    if (
+      !detail.incident.globalChannelRef ||
+      detail.incident.globalMessageRef !== updated.messageRef ||
+      detail.incident.globalChannelRef !== updated.channelRef
+    ) {
       await incidentService.setAnnouncementRefs({
         organizationId: input.organizationId,
         incidentId: input.incidentId,
-        globalChannelRef,
-        globalMessageRef: detail.incident.globalMessageRef
+        globalChannelRef: updated.channelRef,
+        globalMessageRef: updated.messageRef
       });
     }
     return;
@@ -288,7 +292,7 @@ export async function syncGlobalIncidentAnnouncement(input: {
   await incidentService.setAnnouncementRefs({
     organizationId: input.organizationId,
     incidentId: input.incidentId,
-    globalChannelRef,
+    globalChannelRef: posted.channelRef,
     globalMessageRef: posted.messageRef
   });
 }
