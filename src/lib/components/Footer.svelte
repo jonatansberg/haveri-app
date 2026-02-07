@@ -61,7 +61,6 @@
 	.footer-tagline {
 		font-size: 0.85rem;
 		color: var(--color-slate-600);
-		max-width: 240px;
 	}
 
 	.footer-links {
