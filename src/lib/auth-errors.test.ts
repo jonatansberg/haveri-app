@@ -1,6 +1,7 @@
 import {
   getAuthResultErrorMessage,
-  getAuthThrownErrorMessage
+  getAuthThrownErrorMessage,
+  getAuthUnexpectedResultMessage
 } from './auth-errors';
 
 describe('auth error helpers', () => {
@@ -19,11 +20,27 @@ describe('auth error helpers', () => {
     expect(getAuthResultErrorMessage({ error: {} }, 'Unable to sign in')).toBe('Unable to sign in');
   });
 
+  it('uses statusText when error message is missing', () => {
+    expect(getAuthResultErrorMessage({ error: { statusText: 'Unauthorized' } }, 'fallback')).toBe(
+      'Unauthorized'
+    );
+  });
+
   it('extracts thrown Error message', () => {
     expect(getAuthThrownErrorMessage(new Error('Network timeout'), 'fallback')).toBe('Network timeout');
   });
 
   it('returns fallback for unknown thrown values', () => {
     expect(getAuthThrownErrorMessage({ reason: 'bad' }, 'Unable to register')).toBe('Unable to register');
+  });
+
+  it('detects unexpected HTML auth response payloads', () => {
+    expect(getAuthUnexpectedResultMessage({ data: '<!doctype html><html><body>redirect</body></html>' })).toBe(
+      'Auth endpoint returned HTML instead of API data. Check BETTER_AUTH_URL and current app origin.'
+    );
+  });
+
+  it('ignores expected non-HTML result payloads', () => {
+    expect(getAuthUnexpectedResultMessage({ data: { token: 'abc' }, error: null })).toBeNull();
   });
 });

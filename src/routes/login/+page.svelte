@@ -1,10 +1,16 @@
 <script lang="ts">
-  import { getAuthResultErrorMessage, getAuthThrownErrorMessage } from '$lib/auth-errors';
+  import { goto } from '$app/navigation';
+  import {
+    getAuthResultErrorMessage,
+    getAuthThrownErrorMessage,
+    getAuthUnexpectedResultMessage
+  } from '$lib/auth-errors';
   import { authClient } from '$lib/auth-client';
 
   let email = '';
   let password = '';
   let errorMessage: string | null = null;
+  let infoMessage: string | null = null;
   let pending = false;
 
   async function submit(): Promise<void> {
@@ -14,6 +20,7 @@
 
     pending = true;
     errorMessage = null;
+    infoMessage = null;
 
     try {
       const result = await authClient.signIn.email({
@@ -22,7 +29,20 @@
         callbackURL: '/'
       });
 
-      errorMessage = getAuthResultErrorMessage(result, 'Unable to sign in');
+      const resultError = getAuthResultErrorMessage(result, 'Unable to sign in');
+      if (resultError) {
+        errorMessage = resultError;
+        return;
+      }
+
+      const unexpectedResultError = getAuthUnexpectedResultMessage(result);
+      if (unexpectedResultError) {
+        errorMessage = unexpectedResultError;
+        return;
+      }
+
+      infoMessage = 'Signed in. Redirecting...';
+      await goto('/');
     } catch (error) {
       errorMessage = getAuthThrownErrorMessage(error, 'Unable to sign in');
     } finally {
@@ -52,6 +72,9 @@
 
     {#if errorMessage}
       <p class="error">{errorMessage}</p>
+    {/if}
+    {#if infoMessage}
+      <p class="info">{infoMessage}</p>
     {/if}
 
     <button type="submit" disabled={pending}>{pending ? 'Signing in...' : 'Sign in'}</button>
@@ -90,6 +113,11 @@
 
   .error {
     color: #a33a2a;
+    margin: 0;
+  }
+
+  .info {
+    color: #18453b;
     margin: 0;
   }
 

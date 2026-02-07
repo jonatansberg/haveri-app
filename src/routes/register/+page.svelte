@@ -1,11 +1,17 @@
 <script lang="ts">
-  import { getAuthResultErrorMessage, getAuthThrownErrorMessage } from '$lib/auth-errors';
+  import { goto } from '$app/navigation';
+  import {
+    getAuthResultErrorMessage,
+    getAuthThrownErrorMessage,
+    getAuthUnexpectedResultMessage
+  } from '$lib/auth-errors';
   import { authClient } from '$lib/auth-client';
 
   let name = '';
   let email = '';
   let password = '';
   let errorMessage: string | null = null;
+  let infoMessage: string | null = null;
   let pending = false;
 
   async function submit(): Promise<void> {
@@ -15,6 +21,7 @@
 
     pending = true;
     errorMessage = null;
+    infoMessage = null;
 
     try {
       const result = await authClient.signUp.email({
@@ -24,7 +31,20 @@
         callbackURL: '/'
       });
 
-      errorMessage = getAuthResultErrorMessage(result, 'Unable to register');
+      const resultError = getAuthResultErrorMessage(result, 'Unable to register');
+      if (resultError) {
+        errorMessage = resultError;
+        return;
+      }
+
+      const unexpectedResultError = getAuthUnexpectedResultMessage(result);
+      if (unexpectedResultError) {
+        errorMessage = unexpectedResultError;
+        return;
+      }
+
+      infoMessage = 'Account created. Redirecting...';
+      await goto('/');
     } catch (error) {
       errorMessage = getAuthThrownErrorMessage(error, 'Unable to register');
     } finally {
@@ -59,6 +79,9 @@
 
     {#if errorMessage}
       <p class="error">{errorMessage}</p>
+    {/if}
+    {#if infoMessage}
+      <p class="info">{infoMessage}</p>
     {/if}
 
     <button type="submit" disabled={pending}>{pending ? 'Creating account...' : 'Create account'}</button>
@@ -97,6 +120,11 @@
 
   .error {
     color: #a33a2a;
+    margin: 0;
+  }
+
+  .info {
+    color: #18453b;
     margin: 0;
   }
 
