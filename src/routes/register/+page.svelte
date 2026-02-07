@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getAuthResultErrorMessage, getAuthThrownErrorMessage } from '$lib/auth-errors';
   import { authClient } from '$lib/auth-client';
 
   let name = '';
@@ -8,21 +9,27 @@
   let pending = false;
 
   async function submit(): Promise<void> {
+    if (pending) {
+      return;
+    }
+
     pending = true;
     errorMessage = null;
 
-    const result = await authClient.signUp.email({
-      name,
-      email,
-      password,
-      callbackURL: '/'
-    });
+    try {
+      const result = await authClient.signUp.email({
+        name,
+        email,
+        password,
+        callbackURL: '/'
+      });
 
-    if (result.error) {
-      errorMessage = result.error.message ?? 'Unable to register';
+      errorMessage = getAuthResultErrorMessage(result, 'Unable to register');
+    } catch (error) {
+      errorMessage = getAuthThrownErrorMessage(error, 'Unable to register');
+    } finally {
+      pending = false;
     }
-
-    pending = false;
   }
 </script>
 

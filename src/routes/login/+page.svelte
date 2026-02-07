@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getAuthResultErrorMessage, getAuthThrownErrorMessage } from '$lib/auth-errors';
   import { authClient } from '$lib/auth-client';
 
   let email = '';
@@ -7,20 +8,26 @@
   let pending = false;
 
   async function submit(): Promise<void> {
+    if (pending) {
+      return;
+    }
+
     pending = true;
     errorMessage = null;
 
-    const result = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: '/'
-    });
+    try {
+      const result = await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: '/'
+      });
 
-    if (result.error) {
-      errorMessage = result.error.message ?? 'Unable to sign in';
+      errorMessage = getAuthResultErrorMessage(result, 'Unable to sign in');
+    } catch (error) {
+      errorMessage = getAuthThrownErrorMessage(error, 'Unable to sign in');
+    } finally {
+      pending = false;
     }
-
-    pending = false;
   }
 </script>
 
