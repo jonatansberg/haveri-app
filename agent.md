@@ -27,7 +27,7 @@ Track implementation decisions, current progress, verification status, and next 
   - Teams Graph SDK integration for incident channel creation and global adaptive card post/update.
   - Global incident announcement update fallback: post replacement card when Graph patch is restricted.
   - Teams app package tooling: env-driven manifest generator, placeholder icons, zip command, and tenant-tailored E2E checklist output.
-  - Fly.io deployment baseline: production Dockerfile, process-group `fly.toml`, and deployment runbook.
+  - Fly.io deployment baseline: production Dockerfile, process-group `fly.toml`, deployment runbook, and unmanaged Fly Redis app setup guidance.
   - Dashboard + incident detail UI for responsible/comms assignment and workflow state visibility.
   - Test coverage pass with unit + integration suites for parser, adapter, chat-ops, graph client, workflow service, and incident API routes.
 

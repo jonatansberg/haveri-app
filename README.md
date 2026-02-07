@@ -31,6 +31,7 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
   - `Dockerfile`
   - `.dockerignore`
   - `fly.toml`
+- Redis for BullMQ is expected to run as an unmanaged Redis app on Fly (`fly.redis.toml`) and injected as `REDIS_URL`.
 - Full runbook: `docs/fly-io.md`
 
 ## Incident Workflow (MVP Static v1)
