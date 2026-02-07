@@ -1,0 +1,10 @@
+node_modules
+.git
+.gitignore
+.svelte-kit
+coverage
+build
+.env
+.env.*
+*.log
+teams/haveri-teams-app.zip

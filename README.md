@@ -26,6 +26,13 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 - Run migrations once in the target environment: `npm run db:migrate`.
 - Seed optional bootstrap data with `npm run db:seed`.
 
+## Fly.io Deployment
+- Deployment files are included:
+  - `Dockerfile`
+  - `.dockerignore`
+  - `fly.toml`
+- Full runbook: `docs/fly-io.md`
+
 ## Incident Workflow (MVP Static v1)
 - `Responsible Lead` is required on every incident.
 - `Comms Lead` is optional and can be assigned later.

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "start": "node build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "lint": "eslint .",
@@ -16,8 +17,8 @@
     "worker": "tsx src/lib/server/queue/worker.ts",
     "db:migrate": "tsx src/lib/server/db/migrate.ts",
     "db:seed": "tsx src/lib/server/db/seed.ts",
-    "teams:build-package": "tsx src/scripts/teams/build-app-package.ts",
-    "teams:check": "tsx src/scripts/teams/print-e2e-checklist.ts",
+    "teams:build-package": "node --env-file .env --import tsx src/scripts/teams/build-app-package.ts",
+    "teams:check": "node --env-file .env --import tsx src/scripts/teams/print-e2e-checklist.ts",
     "teams:zip-package": "cd teams/appPackage && zip -r ../haveri-teams-app.zip manifest.json color.png outline.png"
   },
   "dependencies": {
