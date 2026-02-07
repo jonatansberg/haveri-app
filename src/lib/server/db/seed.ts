@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db, pool } from './client';
+import { getDefaultOrgId, getTeamsGlobalIncidentChannel } from '$lib/server/services/env';
 import {
   escalationPolicies,
   escalationPolicySteps,
@@ -10,7 +11,8 @@ import {
   teams
 } from './schema';
 
-const defaultOrgId = process.env['DEFAULT_ORG_ID'] ?? '00000000-0000-0000-0000-000000000001';
+const defaultOrgId = getDefaultOrgId();
+const globalIncidentChannelRef = getTeamsGlobalIncidentChannel();
 
 async function seed(): Promise<void> {
   await db
@@ -70,13 +72,13 @@ async function seed(): Promise<void> {
     .values({
       organizationId: defaultOrgId,
       platform: 'teams',
-      globalIncidentChannelRef: process.env['TEAMS_GLOBAL_INCIDENT_CHANNEL'] ?? 'haveri-incidents',
+      globalIncidentChannelRef,
       autoCreateIncidentChannel: true
     })
     .onConflictDoUpdate({
       target: [organizationChatSettings.organizationId, organizationChatSettings.platform],
       set: {
-        globalIncidentChannelRef: process.env['TEAMS_GLOBAL_INCIDENT_CHANNEL'] ?? 'haveri-incidents',
+        globalIncidentChannelRef,
         autoCreateIncidentChannel: true,
         updatedAt: new Date().toISOString()
       }

@@ -1,3 +1,11 @@
+export function getDatabaseUrl(): string {
+  const value = process.env['DATABASE_URL'];
+  if (!value) {
+    throw new Error('DATABASE_URL is required');
+  }
+  return value;
+}
+
 export function getDefaultOrgId(): string {
   return process.env['DEFAULT_ORG_ID'] ?? '00000000-0000-0000-0000-000000000001';
 }

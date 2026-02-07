@@ -90,7 +90,7 @@ function getHostFromBaseUrl(baseUrl: string): string | null {
 }
 
 export function buildTeamsAppPackageConfigFromEnv(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined>
 ): TeamsAppPackageConfig {
   const manifestId = env['TEAMS_MANIFEST_APP_ID'] ?? env['TEAMS_APP_ID'] ?? env['TEAMS_CLIENT_ID'] ?? '';
   const botId = env['TEAMS_BOT_APP_ID'] ?? env['TEAMS_APP_ID'] ?? env['TEAMS_CLIENT_ID'] ?? '';
