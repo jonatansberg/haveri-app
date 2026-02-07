@@ -377,6 +377,7 @@ Implemented in this codebase:
 - Organization-level Teams chat settings for global incident channel and incident channel creation behavior.
 - Incident workflow orchestration service that creates Teams channels, posts adaptive cards to a global channel, and syncs announcement cards on incident state changes.
 - Teams Graph SDK integration (`@microsoft/teams.graph` + endpoints) for channel creation and message/card operations.
+- Teams app package tooling (manifest generation + E2E checklist scripts) for tenant-specific sideload testing.
 - Escalation policy selection, BullMQ job scheduling, and worker-based escalation step execution.
 - Web dashboard for incident declaration/listing and incident detail timeline with control actions.
 

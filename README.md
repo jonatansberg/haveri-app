@@ -40,11 +40,20 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 - `TEAMS_TENANT_ID` / `TEAMS_CLIENT_ID` / `TEAMS_CLIENT_SECRET`: Graph client-credentials auth for channel/message operations.
 - `TEAMS_DELEGATED_ACCESS_TOKEN`: optional override token for local/debug use (takes precedence over client credentials).
 - `TEAMS_GRAPH_BASE_URL_ROOT`: Graph root URL override for sovereign clouds.
+- `TEAMS_APP_BASE_URL`: public HTTPS URL used for Teams bot webhook and manifest generation.
+- `TEAMS_MANIFEST_APP_ID`: Teams app manifest id (GUID).
+- `TEAMS_BOT_APP_ID`: bot app id (GUID) used in Teams manifest.
 
 Channel reference formats accepted for `TEAMS_GLOBAL_INCIDENT_CHANNEL`:
 - `<channelId>` (uses `TEAMS_INCIDENT_TEAM_ID`)
 - `<teamId>/<channelId>`
 - `teams|<teamId>|<channelId>`
+
+Teams packaging scripts:
+- `npm run teams:check` prints a tenant-tailored E2E checklist.
+- `npm run teams:build-package` generates `teams/appPackage/manifest.json` from env.
+- `npm run teams:zip-package` builds `teams/haveri-teams-app.zip` for Teams sideload.
+- Full setup guide: `docs/teams-e2e.md`
 
 ## Verification
 - Run full quality gate:
