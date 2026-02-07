@@ -38,7 +38,7 @@ fly apps create haveri-redis
 Create persistent storage:
 
 ```bash
-fly volumes create redis_data --app haveri-redis --region iad --size 3
+fly volumes create redis_data --app haveri-redis --region fra --size 3
 ```
 
 Set Redis password:

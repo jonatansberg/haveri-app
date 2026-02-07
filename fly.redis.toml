@@ -1,5 +1,5 @@
 app = "haveri-redis"
-primary_region = "iad"
+primary_region = "fra"
 
 [build]
   image = "redis:7.2-alpine"
