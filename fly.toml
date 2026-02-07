@@ -1,5 +1,5 @@
-app = "haveri-console"
-primary_region = "iad"
+app = "haveri-app"
+primary_region = "fra"
 
 [build]
   dockerfile = "Dockerfile"
