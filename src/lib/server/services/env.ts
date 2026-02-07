@@ -1,7 +1,17 @@
-import { env as svelteEnv } from '$env/dynamic/private';
+type EnvironmentMap = Record<string, string | undefined>;
+
+let svelteEnv: EnvironmentMap | null = null;
+
+void import('$env/dynamic/private')
+  .then((module) => {
+    svelteEnv = module.env as EnvironmentMap;
+  })
+  .catch(() => {
+    svelteEnv = null;
+  });
 
 function readEnv(key: string): string | undefined {
-  return svelteEnv[key] ?? process.env[key];
+  return svelteEnv?.[key] ?? process.env[key];
 }
 
 export function getDatabaseUrl(): string {

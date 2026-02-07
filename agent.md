@@ -29,6 +29,8 @@ Track implementation decisions, current progress, verification status, and next 
   - Teams app package tooling: env-driven manifest generator, placeholder icons, zip command, and tenant-tailored E2E checklist output.
   - Runtime env cleanup: server auth + shared server env getters now read SvelteKit dynamic private env first, with `process.env` fallback, and env examples are split into runtime vs manifest-tooling.
   - Auth UX hardening: sign-in/sign-up now use explicit `try/catch/finally` handling so thrown client/network errors surface in the UI and loading state is always reset.
+  - Better Auth hook alignment: removed hook-level API short-circuiting so requests consistently pass through `svelteKitHandler`, and added explicit hook tests for session/local population.
+  - DB script reliability: `db:migrate` and `db:seed` now load `.env` by default; migration + seed executed successfully in this environment.
   - Fly.io deployment baseline: production Dockerfile, process-group `fly.toml`, deployment runbook, and unmanaged Fly Redis app setup guidance.
   - Dashboard + incident detail UI for responsible/comms assignment and workflow state visibility.
   - Test coverage pass with unit + integration suites for parser, adapter, chat-ops, graph client, workflow service, and incident API routes.
@@ -43,8 +45,10 @@ Track implementation decisions, current progress, verification status, and next 
 - Code-reference workflow: use grep MCP to find in-repo usage examples and implementation patterns before adding new code.
 
 ## Verification Snapshot
-- Last full verify run: PASS (`check`, `lint`, `test`) after auth sign-in/sign-up error-handling hardening.
+- Last full verify run: PASS (`check`, `lint`, `test`) after Better Auth hook coverage and env/script compatibility updates.
 - Last coverage run: PASS (`npm run test:coverage`) with thresholds enforced in `vitest.config.ts` for incident/chat workflow modules.
+- Last migration run: PASS (`npm run db:migrate`) applying `001_init.sql` and `002_incident_workflow_channels.sql`.
+- Last seed run: PASS (`npm run db:seed`) with `Seed complete`.
 
 ## Remaining
 - Add deeper integration tests around incident workflow + global announcement synchronization against a live Teams sandbox tenant.

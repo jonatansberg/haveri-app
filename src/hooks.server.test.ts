@@ -1,0 +1,99 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockGetSession = vi.hoisted(() => vi.fn());
+const mockSvelteKitHandler = vi.hoisted(() => vi.fn());
+const mockGetDefaultOrgId = vi.hoisted(() => vi.fn(() => 'org-default'));
+
+vi.mock('$app/environment', () => ({
+  building: false
+}));
+
+vi.mock('$lib/server/auth', () => ({
+  auth: {
+    api: {
+      getSession: mockGetSession
+    }
+  }
+}));
+
+vi.mock('$lib/server/services/env', () => ({
+  getDefaultOrgId: mockGetDefaultOrgId
+}));
+
+vi.mock('better-auth/svelte-kit', () => ({
+  svelteKitHandler: mockSvelteKitHandler
+}));
+
+describe('hooks.server handle', () => {
+  beforeEach(() => {
+    mockGetSession.mockReset();
+    mockSvelteKitHandler.mockReset();
+    mockGetDefaultOrgId.mockClear();
+  });
+
+  it('populates locals from session and delegates to Better Auth handler', async () => {
+    mockGetSession.mockResolvedValue({
+      session: { id: 'session-1', userId: 'user-1' },
+      user: { id: 'user-1', email: 'user@example.com' }
+    });
+
+    const delegatedResponse = new Response('ok', { status: 200 });
+    mockSvelteKitHandler.mockResolvedValue(delegatedResponse);
+
+    const { handle } = await import('./hooks.server');
+
+    const headers = new Headers({ 'x-org-id': 'org-custom' });
+    const event = {
+      request: new Request('http://localhost/api/incidents', { headers }),
+      url: new URL('http://localhost/api/incidents'),
+      locals: {}
+    };
+    const resolve = vi.fn();
+
+    const response = await handle({ event, resolve } as unknown as Parameters<typeof handle>[0]);
+
+    expect(response).toBe(delegatedResponse);
+    expect(mockGetSession).toHaveBeenCalledWith({ headers });
+    expect(event.locals).toEqual({
+      session: { id: 'session-1', userId: 'user-1' },
+      user: { id: 'user-1', email: 'user@example.com' },
+      organizationId: 'org-custom'
+    });
+    expect(mockGetDefaultOrgId).not.toHaveBeenCalled();
+    expect(mockSvelteKitHandler).toHaveBeenCalledTimes(1);
+    expect(mockSvelteKitHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event,
+        resolve,
+        building: false
+      })
+    );
+  });
+
+  it('sets user/session to null and falls back to default organization id', async () => {
+    mockGetSession.mockResolvedValue(null);
+
+    const delegatedResponse = new Response('unauthed', { status: 401 });
+    mockSvelteKitHandler.mockResolvedValue(delegatedResponse);
+
+    const { handle } = await import('./hooks.server');
+
+    const event = {
+      request: new Request('http://localhost/api/incidents'),
+      url: new URL('http://localhost/api/incidents'),
+      locals: {}
+    };
+    const resolve = vi.fn();
+
+    const response = await handle({ event, resolve } as unknown as Parameters<typeof handle>[0]);
+
+    expect(response).toBe(delegatedResponse);
+    expect(event.locals).toEqual({
+      session: null,
+      user: null,
+      organizationId: 'org-default'
+    });
+    expect(mockGetDefaultOrgId).toHaveBeenCalledTimes(1);
+    expect(mockSvelteKitHandler).toHaveBeenCalledTimes(1);
+  });
+});
