@@ -15,8 +15,8 @@
     "test:watch": "vitest",
     "verify": "npm run check && npm run lint && npm run test",
     "worker": "tsx src/lib/server/queue/worker.ts",
-    "db:migrate": "node --env-file .env --import tsx src/lib/server/db/migrate.ts",
-    "db:seed": "node --env-file .env --import tsx src/lib/server/db/seed.ts",
+    "db:migrate": "sh -c 'if [ -f .env ]; then node --env-file .env --import tsx src/lib/server/db/migrate.ts; else node --import tsx src/lib/server/db/migrate.ts; fi'",
+    "db:seed": "sh -c 'if [ -f .env ]; then node --env-file .env --import tsx src/lib/server/db/seed.ts; else node --import tsx src/lib/server/db/seed.ts; fi'",
     "teams:build-package": "sh -c 'if [ -f .env.teams-package ]; then node --env-file .env --env-file .env.teams-package --import tsx src/scripts/teams/build-app-package.ts; else node --env-file .env --import tsx src/scripts/teams/build-app-package.ts; fi'",
     "teams:check": "sh -c 'if [ -f .env.teams-package ]; then node --env-file .env --env-file .env.teams-package --import tsx src/scripts/teams/print-e2e-checklist.ts; else node --env-file .env --import tsx src/scripts/teams/print-e2e-checklist.ts; fi'",
     "teams:zip-package": "cd teams/appPackage && zip -r ../haveri-teams-app.zip manifest.json color.png outline.png"

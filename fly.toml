@@ -8,6 +8,9 @@ primary_region = 'fra'
 
 [build]
 
+[deploy]
+  release_command = 'npm run db:migrate'
+
 [http_service]
   internal_port = 3000
   force_https = true

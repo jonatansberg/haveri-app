@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { getDatabaseUrl } from '$lib/server/services/env';
+import { getDatabaseUrl } from '../services/env';
 import * as schema from './schema';
 
 const connectionString = getDatabaseUrl();
