@@ -21,10 +21,12 @@
 				<div class="story-content">
 					<h2>Why this exists</h2>
 					<p>
-						We've worked in both worlds — software and manufacturing. We've built incident
-						management systems for tech teams, and we've been on the factory floor at 3 AM
-						when a production line goes down. We know what good incident response looks like,
-						and we know how far most manufacturing operations are from having it.
+						Haveri started because two people from different worlds kept having the same
+						conversation. Cecilia has spent her career in manufacturing operations — she
+						knows what it's like to manage a production facility, get woken up at 3 AM,
+						and lose hard-won fixes to chat history. Jonatan has built products and
+						founded companies — he's seen how structured incident management
+						transformed reliability in tech teams.
 					</p>
 					<p>
 						In software, structured incident management has been standard for years. Tools like
@@ -75,18 +77,27 @@
 		<div class="about-inner">
 			<h2>The team</h2>
 			<p class="team-intro">
-				Haveri is built by a small team in Sweden. We're not a faceless company —
-				we're people who care about making operations work better.
+				Haveri is built in Sweden by people who've lived the problem on both sides.
 			</p>
 			<div class="team-grid">
 				<div class="team-member">
-					<div class="member-avatar">JH</div>
-					<h3>Jonatan</h3>
-					<p class="member-role">Founder</p>
+					<div class="member-avatar">CS</div>
+					<h3>Cecilia</h3>
+					<p class="member-role">Co-founder</p>
 					<p class="member-bio">
-						Background in distributed systems and manufacturing operations. Has worked
-						on both sides of the incident — building the software and being on the floor
-						when things break.
+						Manufacturing operations background. Has managed production facilities,
+						handled incidents at 3 AM, and knows firsthand what works on the floor
+						and what doesn't.
+					</p>
+				</div>
+				<div class="team-member">
+					<div class="member-avatar">JS</div>
+					<h3>Jonatan</h3>
+					<p class="member-role">Co-founder</p>
+					<p class="member-bio">
+						Product engineer and founder. Has built large-scale critical systems
+						where every minute of downtime is expensive, and knows what good
+						incident management looks like from the inside.
 					</p>
 				</div>
 			</div>

@@ -17,18 +17,23 @@
 
 		<div class="prose">
 			<p class="lede">
-				We've worked in both software and manufacturing. We built Haveri because
-				we kept seeing the same gap between the two.
+				One of us has managed production facilities. The other builds software products.
+				We built Haveri because the gap between those two worlds doesn't need to exist.
 			</p>
 
 			<p>
-				On the software side, we've built and used structured incident management for years.
-				On the manufacturing side, we've been on the factory floor at 3 AM when a line
-				goes down. We've seen shift supervisors wake people up because nobody knew who else
-				to call. We've watched teams scroll through hundreds of chat messages trying to
-				reconstruct what happened on a shift they weren't on. We've seen the same equipment
-				fail the same way, three months apart, because the fix was never written down
-				anywhere anyone could find it.
+				Cecilia has spent her career in manufacturing operations. She's been the person
+				woken up at 3 AM because a shift supervisor didn't know who else to call. She's
+				scrolled through hundreds of chat messages trying to reconstruct what happened on
+				a shift she wasn't on. She's seen the same equipment fail the same way, three
+				months apart, because the fix was never written down anywhere anyone could find it.
+			</p>
+
+			<p>
+				Jonatan builds software. He's a product engineer and founder who's spent years
+				running large-scale critical systems — the kind where every minute of downtime
+				is expensive. The gap was obvious: the same discipline that makes software teams
+				reliable barely exists in manufacturing.
 			</p>
 
 			<p>
