@@ -1,242 +1,306 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Info from '@lucide/svelte/icons/info';
+  import type { ActionData, PageData } from './$types';
+  import * as Alert from '$lib/components/ui/alert';
+  import { Badge } from '$lib/components/ui/badge';
+  import { Button } from '$lib/components/ui/button';
+  import * as Card from '$lib/components/ui/card';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import * as Select from '$lib/components/ui/select';
+  import { Separator } from '$lib/components/ui/separator';
+  import * as Table from '$lib/components/ui/table';
+  import { Textarea } from '$lib/components/ui/textarea';
 
   export let data: PageData;
+  export let form: ActionData | null = null;
+
+  const incidentStatuses = ['DECLARED', 'INVESTIGATING', 'MITIGATED', 'RESOLVED', 'CLOSED'] as const;
+  const incidentSeverities = ['SEV1', 'SEV2', 'SEV3'] as const;
+  const followUpStatuses = ['OPEN', 'IN_PROGRESS', 'DONE'] as const;
+
+  let statusValue: (typeof incidentStatuses)[number] = data.incident.status as (typeof incidentStatuses)[number];
+  let severityValue: (typeof incidentSeverities)[number] = data.incident
+    .severity as (typeof incidentSeverities)[number];
+  let responsibleMemberId = data.incident.responsibleLeadMemberId ?? data.members[0]?.id ?? '';
+  let commsMemberId = data.incident.commsLeadMemberId ?? data.members[0]?.id ?? '';
+
+  let whatHappened = data.summary?.whatHappened ?? '';
+  let rootCause = data.summary?.rootCause ?? '';
+  let resolution = data.summary?.resolution ?? '';
+  let followUpsInput = '';
+
+  function memberLabel(memberId: string): string {
+    const member = data.members.find((candidate) => candidate.id === memberId);
+    return member ? `${member.name} (${member.role})` : 'Select member';
+  }
+
+  function severityBadgeClass(severity: string): string {
+    if (severity === 'SEV1') {
+      return 'border-transparent bg-sev1 text-white';
+    }
+
+    if (severity === 'SEV2') {
+      return 'border-transparent bg-sev2 text-slate-950';
+    }
+
+    return 'border-transparent bg-sev3 text-white';
+  }
 </script>
 
-<section class="incident-detail">
-  <a href="/">Back to dashboard</a>
-  <h1>{data.incident.title}</h1>
-  <p>
-    <strong>Status:</strong> {data.incident.status} |
-    <strong>Severity:</strong> {data.incident.severity} |
-    <strong>Facility:</strong> {data.incident.facilityName}
-  </p>
-  <p>
-    <strong>Responsible Lead:</strong> {data.incident.responsibleLead ?? 'Unassigned'} |
-    <strong>Comms Lead:</strong> {data.incident.commsLead ?? 'None'}
-  </p>
-  <p>
-    <strong>Incident Channel:</strong> {data.incident.chatChannelRef} |
-    <strong>Global Channel:</strong> {data.incident.globalChannelRef ?? 'N/A'}
-  </p>
-
-  <div class="grid">
-    <div class="panel">
-      <h2>Controls</h2>
-
-      <form method="POST" action="?/status">
-        <label>
-          Status
-          <select name="status">
-            <option value="DECLARED">DECLARED</option>
-            <option value="INVESTIGATING">INVESTIGATING</option>
-            <option value="MITIGATED">MITIGATED</option>
-            <option value="RESOLVED">RESOLVED</option>
-            <option value="CLOSED">CLOSED</option>
-          </select>
-        </label>
-        <button type="submit">Update Status</button>
-      </form>
-
-      <form method="POST" action="?/severity">
-        <label>
-          Severity
-          <select name="severity">
-            <option value="SEV1">SEV1</option>
-            <option value="SEV2">SEV2</option>
-            <option value="SEV3">SEV3</option>
-          </select>
-        </label>
-        <button type="submit">Update Severity</button>
-      </form>
-
-      <form method="POST" action="?/assign">
-        <label>
-          Assign Responsible Lead
-          <select name="memberId">
-            {#each data.members as member}
-              <option value={member.id}>{member.name} ({member.role})</option>
-            {/each}
-          </select>
-        </label>
-        <button type="submit">Assign Responsible</button>
-      </form>
-
-      <form method="POST" action="?/assignComms">
-        <label>
-          Assign Comms Lead
-          <select name="memberId">
-            {#each data.members as member}
-              <option value={member.id}>{member.name} ({member.role})</option>
-            {/each}
-          </select>
-        </label>
-        <button type="submit">Assign Comms</button>
-      </form>
-
-      <form method="POST" action="?/ack">
-        <button type="submit">Acknowledge Escalation</button>
-      </form>
-    </div>
-
-    <div class="panel">
-      <h2>Resolve Incident</h2>
-      <form method="POST" action="?/resolve">
-        <label>
-          What happened
-          <textarea name="whatHappened" required></textarea>
-        </label>
-        <label>
-          Root cause
-          <textarea name="rootCause" required></textarea>
-        </label>
-        <label>
-          Resolution
-          <textarea name="resolution" required></textarea>
-        </label>
-        <button type="submit">Mark Resolved</button>
-      </form>
-
-      <h2>Close Incident</h2>
-      <form method="POST" action="?/close">
-        <label>
-          Follow-up tasks (one per line)
-          <textarea name="followUps"></textarea>
-        </label>
-        <button type="submit">Close Incident</button>
-      </form>
-    </div>
+<section class="grid gap-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <Button href="/" variant="outline">
+      <ArrowLeft class="size-4" />
+      Back to dashboard
+    </Button>
   </div>
 
-  <div class="grid">
-    <div class="panel">
-      <h2>Summary</h2>
-      {#if data.summary}
-        <p><strong>What happened:</strong> {data.summary.whatHappened}</p>
-        <p><strong>Root cause:</strong> {data.summary.rootCause}</p>
-        <p><strong>Resolution:</strong> {data.summary.resolution}</p>
-      {:else}
-        <p>No summary yet.</p>
+  <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+    <Card.Header>
+      <Card.Title class="text-3xl text-slate-900">{data.incident.title}</Card.Title>
+      <Card.Description class="text-slate-600">
+        Declared {new Date(data.incident.declaredAt).toLocaleString()} at {data.incident.facilityName}
+      </Card.Description>
+    </Card.Header>
+
+    <Card.Content class="space-y-4">
+      {#if form?.error}
+        <Alert.Root variant="destructive" class="bg-red-50/70">
+          <AlertTriangle />
+          <Alert.Title>Action failed</Alert.Title>
+          <Alert.Description>We could not apply that update. Review the form and try again.</Alert.Description>
+        </Alert.Root>
       {/if}
-    </div>
 
-    <div class="panel">
-      <h2>Follow-ups</h2>
-      {#if data.followUps.length === 0}
-        <p>No follow-ups.</p>
-      {:else}
-        <ul>
-          {#each data.followUps as followUp}
-            <li>
-              <strong>{followUp.description}</strong>
-              <form method="POST" action="?/followupStatus" class="inline-form">
-                <input type="hidden" name="id" value={followUp.id} />
-                <select name="status">
-                  <option value="OPEN" selected={followUp.status === 'OPEN'}>OPEN</option>
-                  <option value="IN_PROGRESS" selected={followUp.status === 'IN_PROGRESS'}>
-                    IN_PROGRESS
-                  </option>
-                  <option value="DONE" selected={followUp.status === 'DONE'}>DONE</option>
-                </select>
-                <button type="submit">Save</button>
-              </form>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary">{data.incident.status}</Badge>
+        <Badge class={severityBadgeClass(data.incident.severity)}>{data.incident.severity}</Badge>
+        <Badge variant="outline">Facility: {data.incident.facilityName}</Badge>
+        <Badge variant="outline">Responsible: {data.incident.responsibleLead ?? 'Unassigned'}</Badge>
+        <Badge variant="outline">Comms: {data.incident.commsLead ?? 'None'}</Badge>
+      </div>
+
+      <div class="grid gap-3 text-sm text-muted-foreground lg:grid-cols-2">
+        <p><strong class="text-foreground">Incident channel:</strong> {data.incident.chatChannelRef}</p>
+        <p><strong class="text-foreground">Global channel:</strong> {data.incident.globalChannelRef ?? 'N/A'}</p>
+      </div>
+    </Card.Content>
+  </Card.Root>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+      <Card.Header>
+        <Card.Title class="text-2xl text-slate-900">Live Controls</Card.Title>
+        <Card.Description class="text-slate-600">Manage active workflow roles and escalation state.</Card.Description>
+      </Card.Header>
+
+      <Card.Content class="space-y-5">
+        <form method="POST" action="?/status" class="grid gap-2">
+          <Label for="status-select">Status</Label>
+          <Select.Root type="single" name="status" bind:value={statusValue}>
+            <Select.Trigger id="status-select" class="w-full justify-between">{statusValue}</Select.Trigger>
+            <Select.Content>
+              {#each incidentStatuses as status}
+                <Select.Item value={status} label={status} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <Button type="submit" class="w-full sm:w-auto">Update status</Button>
+        </form>
+
+        <Separator />
+
+        <form method="POST" action="?/severity" class="grid gap-2">
+          <Label for="severity-select">Severity</Label>
+          <Select.Root type="single" name="severity" bind:value={severityValue}>
+            <Select.Trigger id="severity-select" class="w-full justify-between">{severityValue}</Select.Trigger>
+            <Select.Content>
+              {#each incidentSeverities as severity}
+                <Select.Item value={severity} label={severity} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <Button type="submit" class="w-full sm:w-auto">Update severity</Button>
+        </form>
+
+        <Separator />
+
+        <form method="POST" action="?/assign" class="grid gap-2">
+          <Label for="responsible-select">Assign Responsible Lead</Label>
+          <Select.Root type="single" name="memberId" bind:value={responsibleMemberId}>
+            <Select.Trigger id="responsible-select" class="w-full justify-between">
+              {memberLabel(responsibleMemberId)}
+            </Select.Trigger>
+            <Select.Content>
+              {#each data.members as member}
+                <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <Button type="submit" class="w-full sm:w-auto">Assign responsible</Button>
+        </form>
+
+        <Separator />
+
+        <form method="POST" action="?/assignComms" class="grid gap-2">
+          <Label for="comms-select">Assign Comms Lead</Label>
+          <Select.Root type="single" name="memberId" bind:value={commsMemberId}>
+            <Select.Trigger id="comms-select" class="w-full justify-between">{memberLabel(commsMemberId)}</Select.Trigger>
+            <Select.Content>
+              {#each data.members as member}
+                <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <Button type="submit" class="w-full sm:w-auto">Assign comms</Button>
+        </form>
+
+        <Separator />
+
+        <form method="POST" action="?/ack">
+          <Button type="submit" variant="secondary" class="w-full sm:w-auto">Acknowledge escalation</Button>
+        </form>
+      </Card.Content>
+    </Card.Root>
+
+    <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+      <Card.Header>
+        <Card.Title class="text-2xl text-slate-900">Resolve and Close</Card.Title>
+        <Card.Description class="text-slate-600">
+          Capture summary context before closing and generating follow-ups.
+        </Card.Description>
+      </Card.Header>
+
+      <Card.Content class="space-y-6">
+        <form method="POST" action="?/resolve" class="grid gap-3">
+          <div class="grid gap-2">
+            <Label for="what-happened">What happened</Label>
+            <Textarea id="what-happened" name="whatHappened" bind:value={whatHappened} required />
+          </div>
+
+          <div class="grid gap-2">
+            <Label for="root-cause">Root cause</Label>
+            <Textarea id="root-cause" name="rootCause" bind:value={rootCause} required />
+          </div>
+
+          <div class="grid gap-2">
+            <Label for="resolution">Resolution</Label>
+            <Textarea id="resolution" name="resolution" bind:value={resolution} required />
+          </div>
+
+          <Button type="submit" class="w-full sm:w-auto">Mark resolved</Button>
+        </form>
+
+        <Separator />
+
+        <form method="POST" action="?/close" class="grid gap-3">
+          <div class="grid gap-2">
+            <Label for="follow-ups">Follow-up tasks (one per line)</Label>
+            <Textarea id="follow-ups" name="followUps" bind:value={followUpsInput} />
+          </div>
+          <Button type="submit" variant="secondary" class="w-full sm:w-auto">Close incident</Button>
+        </form>
+      </Card.Content>
+    </Card.Root>
   </div>
 
-  <div class="panel">
-    <h2>Timeline</h2>
-    <ol class="timeline">
-      {#each data.events as event}
-        <li>
-          <p>
-            <strong>#{event.sequence} {event.eventType}</strong>
-            <span>{new Date(event.createdAt).toLocaleString()}</span>
-          </p>
-          <pre>{JSON.stringify(event.payload, null, 2)}</pre>
-        </li>
-      {/each}
-    </ol>
+  <div class="grid gap-6 xl:grid-cols-2">
+    <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+      <Card.Header>
+        <Card.Title class="text-2xl text-slate-900">Summary</Card.Title>
+      </Card.Header>
+
+      <Card.Content>
+        {#if data.summary}
+          <div class="grid gap-4 text-sm leading-relaxed">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">What happened</p>
+              <p>{data.summary.whatHappened}</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Root cause</p>
+              <p>{data.summary.rootCause}</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Resolution</p>
+              <p>{data.summary.resolution}</p>
+            </div>
+          </div>
+        {:else}
+          <Alert.Root class="border-warm-300 bg-warm-100/70 text-slate-800">
+            <Info />
+            <Alert.Title>No summary yet</Alert.Title>
+            <Alert.Description>Resolve the incident to capture the structured summary.</Alert.Description>
+          </Alert.Root>
+        {/if}
+      </Card.Content>
+    </Card.Root>
+
+    <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+      <Card.Header>
+        <Card.Title class="text-2xl text-slate-900">Follow-ups</Card.Title>
+      </Card.Header>
+
+      <Card.Content>
+        {#if data.followUps.length === 0}
+          <Alert.Root class="border-warm-300 bg-warm-100/70 text-slate-800">
+            <Info />
+            <Alert.Title>No follow-ups</Alert.Title>
+            <Alert.Description>Add tasks when closing the incident.</Alert.Description>
+          </Alert.Root>
+        {:else}
+          <div class="space-y-3">
+            {#each data.followUps as followUp}
+              <div class="rounded-lg border border-warm-300/80 bg-warm-white/80 p-3">
+                <p class="font-medium text-slate-900">{followUp.description}</p>
+
+                <form method="POST" action="?/followupStatus" class="mt-3 flex flex-wrap items-center gap-2">
+                  <Input type="hidden" name="id" value={followUp.id} />
+                  <select
+                    class="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-w-44 rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
+                    name="status"
+                  >
+                    {#each followUpStatuses as statusOption}
+                      <option value={statusOption} selected={followUp.status === statusOption}>
+                        {statusOption}
+                      </option>
+                    {/each}
+                  </select>
+                  <Button type="submit" variant="outline">Save</Button>
+                </form>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </Card.Content>
+    </Card.Root>
   </div>
+
+  <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+    <Card.Header>
+      <Card.Title class="text-2xl text-slate-900">Timeline</Card.Title>
+      <Card.Description class="text-slate-600">Append-only event stream for this incident.</Card.Description>
+    </Card.Header>
+
+    <Card.Content>
+      <div class="space-y-3">
+        {#each data.events as event}
+          <article class="rounded-lg border border-warm-300/80 bg-warm-white/80 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="font-semibold text-slate-900">#{event.sequence} {event.eventType}</p>
+              <p class="text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
+            </div>
+            <pre class="mt-3 overflow-x-auto rounded-md border border-warm-300/80 bg-slate-900 p-3 text-xs text-warm-white">{JSON.stringify(
+                event.payload,
+                null,
+                2
+              )}</pre>
+          </article>
+        {/each}
+      </div>
+    </Card.Content>
+  </Card.Root>
 </section>
-
-<style>
-  .incident-detail {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-  }
-
-  .panel {
-    border: 1px solid #d6d1c0;
-    border-radius: 12px;
-    background: #fff;
-    padding: 1rem;
-  }
-
-  form {
-    display: grid;
-    gap: 0.6rem;
-    margin-bottom: 1rem;
-  }
-
-  label {
-    display: grid;
-    gap: 0.35rem;
-    font-weight: 600;
-  }
-
-  input,
-  select,
-  textarea {
-    border: 1px solid #b5b8bb;
-    border-radius: 6px;
-    padding: 0.5rem 0.6rem;
-    font: inherit;
-  }
-
-  textarea {
-    min-height: 80px;
-  }
-
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    gap: 0.6rem;
-  }
-
-  .inline-form {
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-    margin-top: 0.4rem;
-  }
-
-  .timeline {
-    display: grid;
-    gap: 0.8rem;
-    margin: 0;
-    padding-left: 1.2rem;
-  }
-
-  pre {
-    margin: 0.3rem 0 0;
-    background: #f8f6f1;
-    border: 1px solid #ece6d7;
-    border-radius: 8px;
-    padding: 0.6rem;
-    overflow-x: auto;
-    font-size: 0.85rem;
-  }
-</style>

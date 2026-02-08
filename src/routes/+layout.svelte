@@ -1,12 +1,17 @@
 <script lang="ts">
+  import '../app.css';
+  import { goto } from '$app/navigation';
   import { authClient } from '$lib/auth-client';
+  import { Badge } from '$lib/components/ui/badge';
+  import { Button } from '$lib/components/ui/button';
+  import { Separator } from '$lib/components/ui/separator';
   import type { LayoutData } from './$types';
 
   export let data: LayoutData;
 
   async function signOut(): Promise<void> {
     await authClient.signOut();
-    window.location.href = '/login';
+    await goto('/login');
   }
 </script>
 
@@ -14,68 +19,25 @@
   <title>Haveri</title>
 </svelte:head>
 
-{#if data.user}
-  <header class="topbar">
-    <div>
-      <strong>Haveri</strong>
-      <span>{data.user.email}</span>
-    </div>
-    <nav>
-      <a href="/">Dashboard</a>
-      <button on:click={signOut}>Sign out</button>
-    </nav>
-  </header>
-{/if}
+<div class="relative min-h-screen">
+  {#if data.user}
+    <header class="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-sm">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
+        <div class="flex items-center gap-3">
+          <a href="/" class="font-display text-2xl text-slate-950">Haveri</a>
+          <Badge variant="secondary" class="hidden md:inline-flex">{data.user.email}</Badge>
+        </div>
 
-<main>
-  <slot />
-</main>
+        <nav class="flex items-center gap-2">
+          <Button href="/" variant="ghost">Dashboard</Button>
+          <Button variant="outline" onclick={signOut}>Sign out</Button>
+        </nav>
+      </div>
+      <Separator />
+    </header>
+  {/if}
 
-<style>
-  :global(body) {
-    margin: 0;
-    font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
-    background: #f6f4ef;
-    color: #1f2933;
-  }
-
-  .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #d8d4c8;
-    background: linear-gradient(90deg, #efe8d6, #f9f7f2);
-  }
-
-  .topbar div {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-  }
-
-  .topbar nav {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-  }
-
-  main {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 1.5rem;
-  }
-
-  a {
-    color: #18453b;
-  }
-
-  button {
-    border: 1px solid #18453b;
-    background: #18453b;
-    color: #fff;
-    border-radius: 6px;
-    padding: 0.4rem 0.8rem;
-    cursor: pointer;
-  }
-</style>
+  <main class="mx-auto max-w-7xl p-4 md:p-6">
+    <slot />
+  </main>
+</div>

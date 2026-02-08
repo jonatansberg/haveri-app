@@ -33,6 +33,10 @@ Track implementation decisions, current progress, verification status, and next 
   - Better Auth dev-origin resilience: avoid forcing `baseURL` in dev so auth routes still mount correctly when local origin/port changes.
   - Better Auth hook alignment: removed hook-level API short-circuiting so requests consistently pass through `svelteKitHandler`, and added explicit hook tests for session/local population.
   - DB script reliability: `db:migrate` and `db:seed` now load `.env` by default; migration + seed executed successfully in this environment.
+  - UI stack migration: integrated Tailwind CSS v4 + shadcn-svelte component system, including generated `ui/*` primitives and shared utility helpers.
+  - Visual theme migration: applied marketing-site palette/fonts to global app theme tokens, mapped to shadcn semantic variables, and moved fonts to `app.html`.
+  - Frontend rewrite: migrated layout, dashboard, incident detail, and auth pages from bespoke CSS to shadcn components (cards, buttons, inputs, selects, badges, alerts, tables, separators).
+  - Form robustness: fixed optional comms-lead parsing on incident declaration (`\"\"` now treated as `null`).
   - Fly.io deployment baseline: production Dockerfile, process-group `fly.toml`, deployment runbook, and unmanaged Fly Redis app setup guidance.
   - Dashboard + incident detail UI for responsible/comms assignment and workflow state visibility.
   - Test coverage pass with unit + integration suites for parser, adapter, chat-ops, graph client, workflow service, and incident API routes.
@@ -49,9 +53,11 @@ Track implementation decisions, current progress, verification status, and next 
 ## Verification Snapshot
 - Last full verify run: PASS (`check`, `lint`, `test`) after Better Auth hook coverage and env/script compatibility updates.
 - Last full verify run: PASS (`check`, `lint`, `test`) after auth UX + Better Auth baseURL/origin fixes.
+- Last full verify run: PASS (`check`, `lint`, `test`) after Tailwind/shadcn UI migration and palette integration.
 - Last coverage run: PASS (`npm run test:coverage`) with thresholds enforced in `vitest.config.ts` for incident/chat workflow modules.
 - Last migration run: PASS (`npm run db:migrate`) applying `001_init.sql` and `002_incident_workflow_channels.sql`.
 - Last seed run: PASS (`npm run db:seed`) with `Seed complete`.
+- Last production build run: PASS (`node --env-file .env ./node_modules/vite/bin/vite.js build`).
 
 ## Remaining
 - Add deeper integration tests around incident workflow + global announcement synchronization against a live Teams sandbox tenant.

@@ -1,152 +1,196 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import type { ActionData, PageData } from './$types';
+  import * as Alert from '$lib/components/ui/alert';
+  import { Badge } from '$lib/components/ui/badge';
+  import { Button } from '$lib/components/ui/button';
+  import * as Card from '$lib/components/ui/card';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import * as Select from '$lib/components/ui/select';
+  import { Separator } from '$lib/components/ui/separator';
+  import * as Table from '$lib/components/ui/table';
 
   export let data: PageData;
+  export let form: ActionData | null = null;
+
+  const severities = ['SEV1', 'SEV2', 'SEV3'] as const;
+
+  let title = '';
+  let declareSeverity: (typeof severities)[number] = 'SEV2';
+  let facilityId = data.facilities[0]?.id ?? '';
+  let assignedToMemberId = data.members[0]?.id ?? '';
+  let commsLeadMemberId = '';
+
+  function memberLabel(memberId: string): string {
+    const member = data.members.find((candidate) => candidate.id === memberId);
+    return member ? `${member.name} (${member.role})` : 'Select member';
+  }
+
+  function facilityLabel(selectedId: string): string {
+    return data.facilities.find((facility) => facility.id === selectedId)?.name ?? 'Select facility';
+  }
+
+  function severityBadgeClass(severity: string): string {
+    if (severity === 'SEV1') {
+      return 'border-transparent bg-sev1 text-white';
+    }
+
+    if (severity === 'SEV2') {
+      return 'border-transparent bg-sev2 text-slate-950';
+    }
+
+    return 'border-transparent bg-sev3 text-white';
+  }
 </script>
 
-<section class="dashboard">
-  <div class="panel">
-    <h1>Open Incidents</h1>
-    <p class="subtitle">Declare and track production incidents from the web dashboard.</p>
+<section class="grid gap-6">
+  <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+    <Card.Header>
+      <Card.Title class="text-3xl text-slate-900">Open Incidents</Card.Title>
+      <Card.Description class="text-slate-600">
+        Declare and track production incidents from the web dashboard.
+      </Card.Description>
+    </Card.Header>
 
-    <form method="POST" action="?/declare" class="incident-form">
-      <label>
-        Title
-        <input name="title" placeholder="Packaging line jammed at station 4" required />
-      </label>
+    <Card.Content class="space-y-4">
+      {#if form?.error}
+        <Alert.Root variant="destructive" class="bg-red-50/70">
+          <AlertTriangle />
+          <Alert.Title>Unable to declare incident</Alert.Title>
+          <Alert.Description>Check the form values and try again.</Alert.Description>
+        </Alert.Root>
+      {/if}
 
-      <label>
-        Severity
-        <select name="severity">
-          <option value="SEV1">SEV1</option>
-          <option value="SEV2">SEV2</option>
-          <option value="SEV3">SEV3</option>
-        </select>
-      </label>
+      <form method="POST" action="?/declare" class="grid gap-4 lg:grid-cols-2">
+        <div class="grid gap-2 lg:col-span-2">
+          <Label for="incident-title">Title</Label>
+          <Input
+            id="incident-title"
+            name="title"
+            bind:value={title}
+            placeholder="Packaging line jammed at station 4"
+            required
+          />
+        </div>
 
-      <label>
-        Facility
-        <select name="facilityId" required>
-          {#each data.facilities as facility}
-            <option value={facility.id}>{facility.name}</option>
-          {/each}
-        </select>
-      </label>
+        <div class="grid gap-2">
+          <Label for="incident-severity">Severity</Label>
+          <Select.Root type="single" name="severity" bind:value={declareSeverity}>
+            <Select.Trigger id="incident-severity" class="w-full justify-between">
+              {declareSeverity}
+            </Select.Trigger>
+            <Select.Content>
+              {#each severities as severity}
+                <Select.Item value={severity} label={severity} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
 
-      <label>
-        Responsible Lead
-        <select name="assignedToMemberId" required>
-          {#each data.members as member}
-            <option value={member.id}>{member.name} ({member.role})</option>
-          {/each}
-        </select>
-      </label>
+        <div class="grid gap-2">
+          <Label for="incident-facility">Facility</Label>
+          <Select.Root type="single" name="facilityId" bind:value={facilityId}>
+            <Select.Trigger id="incident-facility" class="w-full justify-between">
+              {facilityLabel(facilityId)}
+            </Select.Trigger>
+            <Select.Content>
+              {#each data.facilities as facility}
+                <Select.Item value={facility.id} label={facility.name} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
 
-      <label>
-        Comms Lead (optional)
-        <select name="commsLeadMemberId">
-          <option value="">None</option>
-          {#each data.members as member}
-            <option value={member.id}>{member.name} ({member.role})</option>
-          {/each}
-        </select>
-      </label>
+        <div class="grid gap-2">
+          <Label for="incident-responsible">Responsible Lead</Label>
+          <Select.Root type="single" name="assignedToMemberId" bind:value={assignedToMemberId}>
+            <Select.Trigger id="incident-responsible" class="w-full justify-between">
+              {memberLabel(assignedToMemberId)}
+            </Select.Trigger>
+            <Select.Content>
+              {#each data.members as member}
+                <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
 
-      <button type="submit">Declare Incident</button>
-    </form>
-  </div>
+        <div class="grid gap-2">
+          <Label for="incident-comms">Comms Lead (optional)</Label>
+          <Select.Root type="single" name="commsLeadMemberId" bind:value={commsLeadMemberId}>
+            <Select.Trigger id="incident-comms" class="w-full justify-between">
+              {commsLeadMemberId ? memberLabel(commsLeadMemberId) : 'None'}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="" label="None" />
+              {#each data.members as member}
+                <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
 
-  <div class="panel">
-    <h2>Recent Incidents</h2>
+        <div class="flex items-end">
+          <Button type="submit" class="w-full lg:w-auto">Declare Incident</Button>
+        </div>
+      </form>
+    </Card.Content>
+  </Card.Root>
 
-    {#if data.incidents.length === 0}
-      <p>No incidents yet.</p>
-    {:else}
-      <table>
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Severity</th>
-            <th>Facility</th>
-            <th>Responsible</th>
-            <th>Comms</th>
-            <th>Declared</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each data.incidents as incident}
-            <tr>
-              <td><a href={`/incidents/${incident.id}`}>{incident.title}</a></td>
-              <td>{incident.status}</td>
-              <td>{incident.severity}</td>
-              <td>{incident.facilityName}</td>
-              <td>{incident.responsibleLead ?? 'Unassigned'}</td>
-              <td>{incident.commsLead ?? '-'}</td>
-              <td>{new Date(incident.declaredAt).toLocaleString()}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    {/if}
-  </div>
+  <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+    <Card.Header>
+      <Card.Title class="text-2xl text-slate-900">Recent Incidents</Card.Title>
+      <Card.Description class="text-slate-600">Current and recently updated incident records.</Card.Description>
+    </Card.Header>
+
+    <Card.Content>
+      {#if data.incidents.length === 0}
+        <Alert.Root class="border-warm-300 bg-warm-100/70 text-slate-800">
+          <AlertTriangle />
+          <Alert.Title>No incidents yet</Alert.Title>
+          <Alert.Description>Declare the first incident using the form above.</Alert.Description>
+        </Alert.Root>
+      {:else}
+        <div class="overflow-x-auto rounded-lg border border-warm-300/80">
+          <Table.Root>
+            <Table.Header>
+              <Table.Row>
+                <Table.Head>Title</Table.Head>
+                <Table.Head>Status</Table.Head>
+                <Table.Head>Severity</Table.Head>
+                <Table.Head>Facility</Table.Head>
+                <Table.Head>Responsible</Table.Head>
+                <Table.Head>Comms</Table.Head>
+                <Table.Head>Declared</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {#each data.incidents as incident}
+                <Table.Row>
+                  <Table.Cell>
+                    <a class="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/incidents/${incident.id}`}>
+                      {incident.title}
+                    </a>
+                  </Table.Cell>
+                  <Table.Cell><Badge variant="secondary">{incident.status}</Badge></Table.Cell>
+                  <Table.Cell>
+                    <Badge class={severityBadgeClass(incident.severity)}>{incident.severity}</Badge>
+                  </Table.Cell>
+                  <Table.Cell>{incident.facilityName}</Table.Cell>
+                  <Table.Cell>{incident.responsibleLead ?? 'Unassigned'}</Table.Cell>
+                  <Table.Cell>{incident.commsLead ?? '-'}</Table.Cell>
+                  <Table.Cell class="text-muted-foreground">
+                    {new Date(incident.declaredAt).toLocaleString()}
+                  </Table.Cell>
+                </Table.Row>
+              {/each}
+            </Table.Body>
+          </Table.Root>
+        </div>
+      {/if}
+    </Card.Content>
+  </Card.Root>
+
+  <Separator class="opacity-50" />
 </section>
-
-<style>
-  .dashboard {
-    display: grid;
-    gap: 1.2rem;
-  }
-
-  .panel {
-    border: 1px solid #d6d1c0;
-    border-radius: 12px;
-    background: #fff;
-    padding: 1rem;
-  }
-
-  .subtitle {
-    color: #4d5a64;
-    margin-top: 0;
-  }
-
-  .incident-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.8rem;
-    align-items: end;
-  }
-
-  label {
-    display: grid;
-    gap: 0.35rem;
-    font-weight: 600;
-  }
-
-  input,
-  select {
-    border: 1px solid #b5b8bb;
-    border-radius: 6px;
-    padding: 0.5rem 0.6rem;
-    font: inherit;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  th,
-  td {
-    text-align: left;
-    border-bottom: 1px solid #eee8d6;
-    padding: 0.5rem;
-  }
-
-  th {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: #4d5a64;
-  }
-</style>

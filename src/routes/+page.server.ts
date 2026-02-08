@@ -41,13 +41,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   declare: async ({ request, locals }) => {
     const formData = await request.formData();
+    const commsLeadMemberId = formData.get('commsLeadMemberId');
 
     const parsed = declareSchema.safeParse({
       title: formData.get('title'),
       severity: formData.get('severity'),
       facilityId: formData.get('facilityId'),
       assignedToMemberId: formData.get('assignedToMemberId'),
-      commsLeadMemberId: formData.get('commsLeadMemberId') ?? null
+      commsLeadMemberId:
+        typeof commsLeadMemberId === 'string' && commsLeadMemberId.length === 0
+          ? null
+          : commsLeadMemberId
     });
 
     if (!parsed.success) {
