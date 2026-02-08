@@ -13,6 +13,7 @@ RUN npm ci
 
 FROM base AS build
 COPY . .
+ENV DATABASE_URL=postgres://user:password@localhost:5432/db
 RUN npm run build
 
 FROM node:22-bookworm-slim AS runtime
