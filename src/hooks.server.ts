@@ -4,14 +4,96 @@ import { getDefaultOrgId } from '$lib/server/services/env';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import type { Handle } from '@sveltejs/kit';
 
+interface RequestLogContext {
+  requestId: string | null;
+  method: string;
+  path: string;
+  search: string;
+  orgId: string;
+  userId: string | null;
+  host: string | null;
+  forwardedHost: string | null;
+  forwardedProto: string | null;
+  forwardedFor: string | null;
+}
+
+function buildRequestLogContext(
+  event: Parameters<Handle>[0]['event'],
+  orgId: string,
+  userId: string | null
+): RequestLogContext {
+  const url = new URL(event.request.url);
+
+  return {
+    requestId:
+      event.request.headers.get('fly-request-id') ??
+      event.request.headers.get('x-request-id') ??
+      event.request.headers.get('traceparent'),
+    method: event.request.method,
+    path: url.pathname,
+    search: url.search,
+    orgId,
+    userId,
+    host: event.request.headers.get('host'),
+    forwardedHost: event.request.headers.get('x-forwarded-host'),
+    forwardedProto: event.request.headers.get('x-forwarded-proto'),
+    forwardedFor: event.request.headers.get('x-forwarded-for')
+  };
+}
+
+function logRequest(level: 'info' | 'warn' | 'error', message: string, details: Record<string, unknown>) {
+  const logger = level === 'error' ? console.error : level === 'warn' ? console.warn : console.info;
+  logger(message, details);
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
-  const session = await auth.api.getSession({
-    headers: event.request.headers
-  });
+  const startedAt = Date.now();
+  const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
 
-  event.locals.session = session?.session ?? null;
-  event.locals.user = session?.user ?? null;
-  event.locals.organizationId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
+  try {
+    const session = await auth.api.getSession({
+      headers: event.request.headers
+    });
 
-  return svelteKitHandler({ event, resolve, auth, building });
+    event.locals.session = session?.session ?? null;
+    event.locals.user = session?.user ?? null;
+    event.locals.organizationId = orgId;
+
+    const response = await svelteKitHandler({ event, resolve, auth, building });
+    const durationMs = Date.now() - startedAt;
+    const context = buildRequestLogContext(event, orgId, session?.user?.id ?? null);
+
+    if (response.status >= 500) {
+      logRequest('error', 'Request failed', {
+        ...context,
+        status: response.status,
+        durationMs
+      });
+    } else if (response.status >= 400) {
+      logRequest('warn', 'Request completed with client error', {
+        ...context,
+        status: response.status,
+        durationMs
+      });
+    } else {
+      logRequest('info', 'Request completed', {
+        ...context,
+        status: response.status,
+        durationMs
+      });
+    }
+
+    return response;
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    const context = buildRequestLogContext(event, orgId, event.locals.user?.id ?? null);
+
+    logRequest('error', 'Request crashed', {
+      ...context,
+      durationMs,
+      error: error instanceof Error ? error.message : String(error)
+    });
+
+    throw error;
+  }
 };

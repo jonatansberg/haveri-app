@@ -55,6 +55,91 @@ const teamsWebhookPayloadSchema = z.union([teamsPayloadSchema, teamsActivityPayl
 type LegacyTeamsWebhookPayload = z.infer<typeof teamsPayloadSchema>;
 type TeamsActivityWebhookPayload = z.infer<typeof teamsActivityPayloadSchema>;
 
+interface WebhookRequestLogContext {
+  requestId: string | null;
+  orgId: string;
+  method: string;
+  path: string;
+  host: string | null;
+  forwardedHost: string | null;
+  forwardedProto: string | null;
+  forwardedFor: string | null;
+  contentType: string | null;
+  contentLength: string | null;
+  userAgent: string | null;
+}
+
+function getRequestLogContext(event: Parameters<RequestHandler>[0], orgId: string): WebhookRequestLogContext {
+  const url = new URL(event.request.url);
+
+  return {
+    requestId:
+      event.request.headers.get('fly-request-id') ??
+      event.request.headers.get('x-request-id') ??
+      event.request.headers.get('traceparent'),
+    orgId,
+    method: event.request.method,
+    path: url.pathname,
+    host: event.request.headers.get('host'),
+    forwardedHost: event.request.headers.get('x-forwarded-host'),
+    forwardedProto: event.request.headers.get('x-forwarded-proto'),
+    forwardedFor: event.request.headers.get('x-forwarded-for'),
+    contentType: event.request.headers.get('content-type'),
+    contentLength: event.request.headers.get('content-length'),
+    userAgent: event.request.headers.get('user-agent')
+  };
+}
+
+function summarizePayload(payload: unknown): Record<string, unknown> {
+  if (!payload || typeof payload !== 'object') {
+    return { payloadType: typeof payload };
+  }
+
+  const source = payload as Record<string, unknown>;
+  const rawText = typeof source['text'] === 'string' ? source['text'] : null;
+  const sanitizedText = rawText
+    ? stripTeamsMentions(rawText).replace(/\s+/g, ' ').trim().slice(0, 180)
+    : null;
+
+  return {
+    id: typeof source['id'] === 'string' ? source['id'] : null,
+    type: typeof source['type'] === 'string' ? source['type'] : null,
+    hasText: rawText !== null,
+    textPreview: sanitizedText,
+    fromId:
+      typeof source['from'] === 'object' &&
+      source['from'] !== null &&
+      typeof (source['from'] as Record<string, unknown>)['id'] === 'string'
+        ? ((source['from'] as Record<string, unknown>)['id'] as string)
+        : null,
+    fromAadObjectId:
+      typeof source['from'] === 'object' &&
+      source['from'] !== null &&
+      typeof (source['from'] as Record<string, unknown>)['aadObjectId'] === 'string'
+        ? ((source['from'] as Record<string, unknown>)['aadObjectId'] as string)
+        : null,
+    channelId:
+      typeof source['channelId'] === 'string'
+        ? source['channelId']
+        : typeof source['channelData'] === 'object' &&
+              source['channelData'] !== null &&
+              typeof (source['channelData'] as Record<string, unknown>)['channel'] === 'object' &&
+              (source['channelData'] as Record<string, unknown>)['channel'] !== null &&
+              typeof (
+                (source['channelData'] as Record<string, unknown>)['channel'] as Record<string, unknown>
+              )['id'] === 'string'
+          ? (((source['channelData'] as Record<string, unknown>)['channel'] as Record<string, unknown>)[
+              'id'
+            ] as string)
+          : null
+  };
+}
+
+function logWebhookEvent(level: 'info' | 'warn' | 'error', message: string, details: Record<string, unknown>) {
+  const logger = level === 'error' ? console.error : level === 'warn' ? console.warn : console.info;
+  logger(message, details);
+}
+
 function isLegacyTeamsWebhookPayload(
   payload: LegacyTeamsWebhookPayload | TeamsActivityWebhookPayload
 ): payload is LegacyTeamsWebhookPayload {
@@ -107,13 +192,25 @@ function toTeamsInbound(
 }
 
 export const POST: RequestHandler = async (event) => {
+  const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
+  const context = getRequestLogContext(event, orgId);
+
   try {
-    const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
-    const payload = teamsWebhookPayloadSchema.parse(await readJson<unknown>(event.request));
+    const rawPayload = await readJson<unknown>(event.request);
+    logWebhookEvent('info', 'Teams webhook request received', {
+      ...context,
+      payload: summarizePayload(rawPayload)
+    });
+
+    const payload = teamsWebhookPayloadSchema.parse(rawPayload);
     const inbound = toTeamsInbound(payload);
 
     const existing = await getIdempotentResponse(orgId, 'teams', inbound.id);
     if (existing) {
+      logWebhookEvent('info', 'Teams webhook idempotent cache hit', {
+        ...context,
+        inboundId: inbound.id
+      });
       return json(existing);
     }
 
@@ -126,11 +223,31 @@ export const POST: RequestHandler = async (event) => {
       responsePayload: response
     });
 
+    logWebhookEvent('info', 'Teams webhook processed', {
+      ...context,
+      inboundId: inbound.id,
+      channelId: inbound.channelId,
+      userId: inbound.userId
+    });
+
     return json(response);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logWebhookEvent('warn', 'Teams webhook validation failed', {
+        ...context,
+        issues: error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          code: issue.code,
+          message: issue.message
+        }))
+      });
       return json({ error: error.flatten() }, { status: 400 });
     }
+
+    logWebhookEvent('error', 'Teams webhook failed', {
+      ...context,
+      error: error instanceof Error ? error.message : String(error)
+    });
 
     return toErrorResponse(error);
   }
