@@ -69,9 +69,9 @@ describe('POST /api/incidents', () => {
     mockReadJson.mockResolvedValue({
       title: 'Conveyor down',
       severity: 'SEV1',
-      facilityId: '11111111-1111-1111-1111-111111111111',
-      assignedToMemberId: '22222222-2222-2222-2222-222222222222',
-      commsLeadMemberId: '33333333-3333-3333-3333-333333333333',
+      facilityId: '11111111-1111-4111-8111-111111111111',
+      assignedToMemberId: '22222222-2222-4222-8222-222222222222',
+      commsLeadMemberId: '33333333-3333-4333-8333-333333333333',
       chatPlatform: 'teams',
       sourceChannelRef: 'teams:source:1',
       tags: ['line-down']
@@ -97,8 +97,8 @@ describe('POST /api/incidents', () => {
         organizationId: 'org-1',
         title: 'Conveyor down',
         severity: 'SEV1',
-        responsibleLeadMemberId: '22222222-2222-2222-2222-222222222222',
-        commsLeadMemberId: '33333333-3333-3333-3333-333333333333',
+        responsibleLeadMemberId: '22222222-2222-4222-8222-222222222222',
+        commsLeadMemberId: '33333333-3333-4333-8333-333333333333',
         actorExternalId: 'user-1'
       })
     );

@@ -39,7 +39,7 @@ describe('POST /api/incidents/:id/comms', () => {
 
   it('assigns a comms lead and syncs global announcement', async () => {
     mockReadJson.mockResolvedValue({
-      memberId: '11111111-1111-1111-1111-111111111111'
+      memberId: '11111111-1111-4111-8111-111111111111'
     });
 
     const response = await POST({
@@ -53,7 +53,7 @@ describe('POST /api/incidents/:id/comms', () => {
     expect(mockIncidentService.assignCommsLead).toHaveBeenCalledWith({
       organizationId: 'org-1',
       incidentId: 'inc-1',
-      memberId: '11111111-1111-1111-1111-111111111111'
+      memberId: '11111111-1111-4111-8111-111111111111'
     });
     expect(mockSyncGlobalIncidentAnnouncement).toHaveBeenCalledWith({
       organizationId: 'org-1',

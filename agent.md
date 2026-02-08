@@ -37,6 +37,8 @@ Track implementation decisions, current progress, verification status, and next 
   - Visual theme migration: applied marketing-site palette/fonts to global app theme tokens, mapped to shadcn semantic variables, and moved fonts to `app.html`.
   - Frontend rewrite: migrated layout, dashboard, incident detail, and auth pages from bespoke CSS to shadcn components (cards, buttons, inputs, selects, badges, alerts, tables, separators).
   - Form robustness: fixed optional comms-lead parsing on incident declaration (`\"\"` now treated as `null`).
+  - Dependency refresh: upgraded to `zod@4` and moved core runtime/tooling packages to recent compatible releases (`vite@7`, `vitest@4`, latest TypeScript-eslint, refreshed Svelte/SvelteKit versions).
+  - Test compatibility update: adjusted API test UUID fixtures to valid v4 UUIDs because `zod@4` UUID parsing is stricter.
   - Fly.io deployment baseline: production Dockerfile, process-group `fly.toml`, deployment runbook, and unmanaged Fly Redis app setup guidance.
   - Dashboard + incident detail UI for responsible/comms assignment and workflow state visibility.
   - Test coverage pass with unit + integration suites for parser, adapter, chat-ops, graph client, workflow service, and incident API routes.
@@ -54,6 +56,7 @@ Track implementation decisions, current progress, verification status, and next 
 - Last full verify run: PASS (`check`, `lint`, `test`) after Better Auth hook coverage and env/script compatibility updates.
 - Last full verify run: PASS (`check`, `lint`, `test`) after auth UX + Better Auth baseURL/origin fixes.
 - Last full verify run: PASS (`check`, `lint`, `test`) after Tailwind/shadcn UI migration and palette integration.
+- Last full verify run: PASS (`check`, `lint`, `test`) after dependency refresh (`zod@4`, `vite@7`, `vitest@4`).
 - Last coverage run: PASS (`npm run test:coverage`) with thresholds enforced in `vitest.config.ts` for incident/chat workflow modules.
 - Last migration run: PASS (`npm run db:migrate`) applying `001_init.sql` and `002_incident_workflow_channels.sql`.
 - Last seed run: PASS (`npm run db:seed`) with `Seed complete`.

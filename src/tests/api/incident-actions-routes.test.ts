@@ -118,7 +118,7 @@ describe('incident action API routes', () => {
   });
 
   it('assigns incident responsible lead', async () => {
-    mockReadJson.mockResolvedValue({ memberId: '11111111-1111-1111-1111-111111111111' });
+    mockReadJson.mockResolvedValue({ memberId: '11111111-1111-4111-8111-111111111111' });
 
     const response = await assignIncident({
       params: { id: 'inc-4' },
@@ -130,7 +130,7 @@ describe('incident action API routes', () => {
     expect(mockIncidentService.assignLead).toHaveBeenCalledWith({
       organizationId: 'org-1',
       incidentId: 'inc-4',
-      memberId: '11111111-1111-1111-1111-111111111111'
+      memberId: '11111111-1111-4111-8111-111111111111'
     });
   });
 
@@ -166,7 +166,7 @@ describe('incident action API routes', () => {
       followUps: [
         {
           description: 'Inspect station 4 sensors',
-          assignedToMemberId: '11111111-1111-1111-1111-111111111111',
+          assignedToMemberId: '11111111-1111-4111-8111-111111111111',
           dueDate: '2026-03-01'
         },
         {
@@ -188,7 +188,7 @@ describe('incident action API routes', () => {
       followUps: [
         {
           description: 'Inspect station 4 sensors',
-          assignedToMemberId: '11111111-1111-1111-1111-111111111111',
+          assignedToMemberId: '11111111-1111-4111-8111-111111111111',
           dueDate: '2026-03-01'
         },
         {
