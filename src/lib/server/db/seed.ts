@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db, pool } from './client';
-import { getDefaultOrgId, getTeamsGlobalIncidentChannel } from '$lib/server/services/env';
+import { getDefaultOrgId, getTeamsGlobalIncidentChannel } from '../services/env';
 import {
   escalationPolicies,
   escalationPolicySteps,
