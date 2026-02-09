@@ -20,7 +20,7 @@ This document intentionally keeps the strongest parts of the current build and o
 
 ## 1) Infrastructure & Data Layer
 
-- [ ] **Organization slug + tenant-safe context**
+- [x] **Organization slug + tenant-safe context**
   Current build has org `id` + `name` only, and tenant context is taken from `x-org-id`.
   Implement `organizations.slug` (DB-unique) and bind tenant context to authenticated org membership (not header-only).
   **AC:** slug uniqueness enforced in DB; dashboard URLs support `/{slug}/...`; user from org A cannot access org B by changing headers.

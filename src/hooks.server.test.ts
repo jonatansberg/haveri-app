@@ -133,4 +133,38 @@ describe('hooks.server handle', () => {
     await expect(response.text()).resolves.toBe('Forbidden');
     expect(mockSvelteKitHandler).not.toHaveBeenCalled();
   });
+
+  it('rewrites slug-prefixed dashboard paths to internal routes', async () => {
+    mockGetSession.mockResolvedValue({
+      session: { id: 'session-2', userId: 'user-2' },
+      user: { id: 'user-2', email: 'user2@example.com' }
+    });
+    mockResolveOrganizationContextForUser.mockResolvedValue({
+      organizationId: 'org-2',
+      organizationSlug: 'acme'
+    });
+
+    const delegatedResponse = new Response('ok', { status: 200 });
+    mockSvelteKitHandler.mockResolvedValue(delegatedResponse);
+
+    const { handle } = await import('./hooks.server');
+
+    const event = {
+      request: new Request('http://localhost/acme/incidents/123'),
+      url: new URL('http://localhost/acme/incidents/123'),
+      locals: {}
+    };
+    const resolve = vi.fn();
+
+    const response = await handle({ event, resolve } as unknown as Parameters<typeof handle>[0]);
+
+    expect(response).toBe(delegatedResponse);
+    expect(event.url.pathname).toBe('/incidents/123');
+    expect(mockResolveOrganizationContextForUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-2',
+        requestedOrganizationSlug: 'acme'
+      })
+    );
+  });
 });

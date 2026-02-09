@@ -47,10 +47,29 @@ function logRequest(level: 'info' | 'warn' | 'error', message: string, details: 
   logger(message, details);
 }
 
+const reservedTopLevelSegments = new Set(['api', 'login', 'register', 'incidents', 'followups']);
+
+function parseSlugFromPath(pathname: string): { slug: string; rewrittenPathname: string } | null {
+  const parts = pathname.split('/').filter((part) => part.length > 0);
+  const first = parts[0];
+
+  if (!first || reservedTopLevelSegments.has(first)) {
+    return null;
+  }
+
+  const rewrittenPathname = `/${parts.slice(1).join('/')}`.replace(/\/+$/, '');
+  return {
+    slug: first,
+    rewrittenPathname: rewrittenPathname === '' ? '/' : rewrittenPathname
+  };
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
   const startedAt = Date.now();
   const requestedOrgId = event.request.headers.get('x-org-id');
   const requestedOrgSlug = event.request.headers.get('x-org-slug');
+  const slugFromPath = parseSlugFromPath(event.url.pathname);
+  const requestedScopedSlug = requestedOrgSlug ?? slugFromPath?.slug ?? null;
   const defaultOrgId = getDefaultOrgId();
   let orgId = requestedOrgId ?? defaultOrgId;
   let orgSlug = 'default';
@@ -67,7 +86,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         userId: session.user.id,
         fallbackOrganizationId: defaultOrgId,
         ...(requestedOrgId ? { requestedOrganizationId: requestedOrgId } : {}),
-        ...(requestedOrgSlug ? { requestedOrganizationSlug: requestedOrgSlug } : {})
+        ...(requestedScopedSlug ? { requestedOrganizationSlug: requestedScopedSlug } : {})
       });
 
       if (!organizationContext) {
@@ -81,6 +100,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
       orgId = organizationContext.organizationId;
       orgSlug = organizationContext.organizationSlug;
+
+      if (slugFromPath?.slug === organizationContext.organizationSlug) {
+        event.url.pathname = slugFromPath.rewrittenPathname;
+      }
     }
     event.locals.organizationId = orgId;
     event.locals.organizationSlug = orgSlug;
