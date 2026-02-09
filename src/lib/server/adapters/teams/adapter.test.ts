@@ -6,7 +6,7 @@ const mockFindIncidentByChannel = vi.hoisted(() => vi.fn());
 const mockDeclareIncidentWithWorkflow = vi.hoisted(() => vi.fn());
 const mockSyncGlobalIncidentAnnouncement = vi.hoisted(() => vi.fn());
 const mockResolveMemberByNameHint = vi.hoisted(() => vi.fn());
-const mockResolveMemberByPlatformIdentity = vi.hoisted(() => vi.fn());
+const mockResolveOrProvisionMemberByPlatformIdentity = vi.hoisted(() => vi.fn());
 const mockIncidentService = vi.hoisted(() => ({
   resolveIncident: vi.fn(),
   updateStatus: vi.fn(),
@@ -34,7 +34,7 @@ vi.mock('$lib/server/services/incident-workflow-service', () => ({
 
 vi.mock('$lib/server/services/member-identity-service', () => ({
   resolveMemberByNameHint: mockResolveMemberByNameHint,
-  resolveMemberByPlatformIdentity: mockResolveMemberByPlatformIdentity
+  resolveOrProvisionMemberByPlatformIdentity: mockResolveOrProvisionMemberByPlatformIdentity
 }));
 
 vi.mock('$lib/server/services/incident-service', () => ({
@@ -66,7 +66,11 @@ describe('teams adapter', () => {
 
   it('handles /incident command and maps workflow roles', async () => {
     mockDbSelect.mockReturnValueOnce(selectChain([{ id: 'facility-1' }]));
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
     mockResolveMemberByNameHint
       .mockResolvedValueOnce({ memberId: 'member-resp', name: 'Alex' })
       .mockResolvedValueOnce({ memberId: 'member-comms', name: 'Sara' });
@@ -82,7 +86,16 @@ describe('teams adapter', () => {
       text: '/incident SEV1 @resp:Alex @comms:Sara Line is down',
       channelId: 'teams:source:1',
       userId: 'teams-user-1',
-      userName: 'Operator'
+      userName: 'Operator',
+      tenantId: 'teams-tenant-1'
+    });
+
+    expect(mockResolveOrProvisionMemberByPlatformIdentity).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      platform: 'teams',
+      platformUserId: 'teams-user-1',
+      platformTenantId: 'teams-tenant-1',
+      displayName: 'Operator'
     });
 
     expect(mockDeclareIncidentWithWorkflow).toHaveBeenCalledWith(
@@ -106,7 +119,11 @@ describe('teams adapter', () => {
   });
 
   it('handles /status command and syncs global announcement', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
 
     const result = await handleTeamsInbound('org-1', {
       id: 'msg-2',
@@ -136,7 +153,11 @@ describe('teams adapter', () => {
   });
 
   it('handles /mitigated without explicit incident id by resolving channel incident', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
     mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-1', title: 'Incident 1' });
 
     const result = await handleTeamsInbound('org-1', {
@@ -163,7 +184,11 @@ describe('teams adapter', () => {
   });
 
   it('handles /severity command and syncs global announcement', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
     mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-11', title: 'Incident 11' });
 
     const result = await handleTeamsInbound('org-1', {
@@ -189,7 +214,11 @@ describe('teams adapter', () => {
   });
 
   it('handles /lead command and syncs global announcement', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
     mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-12', title: 'Incident 12' });
     mockResolveMemberByNameHint.mockResolvedValue({ memberId: 'member-target', name: 'Alex' });
 
@@ -220,7 +249,11 @@ describe('teams adapter', () => {
   });
 
   it('handles /resolve command and syncs global announcement', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
 
     const result = await handleTeamsInbound('org-1', {
       id: 'msg-2b',
@@ -253,7 +286,11 @@ describe('teams adapter', () => {
   });
 
   it('handles /ack command and syncs global announcement', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
 
     const result = await handleTeamsInbound('org-1', {
       id: 'msg-2c',
@@ -280,7 +317,7 @@ describe('teams adapter', () => {
   });
 
   it('captures non-command messages for linked incident channels', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue(null);
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue(null);
     mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-99', title: 'Existing incident' });
 
     const result = await handleTeamsInbound('org-1', {
@@ -337,7 +374,11 @@ describe('teams adapter', () => {
   });
 
   it('ignores non-command messages in channels without active incidents', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
     mockFindIncidentByChannel.mockResolvedValue(null);
 
     const result = await handleTeamsInbound('org-1', {
@@ -356,7 +397,11 @@ describe('teams adapter', () => {
   });
 
   it('returns help for unknown commands', async () => {
-    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
 
     const result = await handleTeamsInbound('org-1', {
       id: 'msg-4',

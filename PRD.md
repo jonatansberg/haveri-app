@@ -36,7 +36,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Keep shift schedule optional, and enforce runtime “always active when no schedule” behavior in routing.
   **AC:** one member can belong to multiple teams; routing uses active team windows.
 
-- [ ] **Member identity mapping completion**
+- [x] **Member identity mapping completion**
   Implement auto-provision on first Teams interaction and map identity with Teams tenant boundary (`teams_user_id + teams_tenant_id` semantics).
   **AC:** first message from unknown Teams user creates member + mapping; repeat messages resolve same member; no cross-tenant identity collision.
 

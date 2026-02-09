@@ -68,7 +68,8 @@ describe('POST /api/chat/teams/webhook', () => {
       text: '/incident SEV1 Conveyor stopped',
       channelId: '19:channel@thread.tacv2',
       userId: 'user-1',
-      userName: 'Alex'
+      userName: 'Alex',
+      tenantId: 'tenant-legacy-1'
     });
 
     const response = await POST({
@@ -85,7 +86,8 @@ describe('POST /api/chat/teams/webhook', () => {
         id: 'evt-1',
         text: '/incident SEV1 Conveyor stopped',
         channelId: '19:channel@thread.tacv2',
-        userId: 'user-1'
+        userId: 'user-1',
+        tenantId: 'tenant-legacy-1'
       })
     );
     expect(mockStoreIdempotentResponse).toHaveBeenCalledWith(
@@ -133,6 +135,9 @@ describe('POST /api/chat/teams/webhook', () => {
       channelData: {
         channel: {
           id: '19:channel@thread.tacv2'
+        },
+        tenant: {
+          id: 'tenant-activity-1'
         }
       },
       attachments: [
@@ -157,6 +162,7 @@ describe('POST /api/chat/teams/webhook', () => {
         text: '/status inc-22 MITIGATED',
         channelId: '19:channel@thread.tacv2',
         userId: 'aad-user-1',
+        tenantId: 'tenant-activity-1',
         userName: 'Operator',
         timestamp: '2026-02-07T10:00:00.000Z',
         attachments: [

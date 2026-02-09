@@ -41,10 +41,11 @@ CREATE TABLE IF NOT EXISTS member_chat_identities (
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
   platform TEXT NOT NULL,
+  platform_tenant_id TEXT NOT NULL DEFAULT '',
   platform_user_id TEXT NOT NULL,
   display_name TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (organization_id, platform, platform_user_id),
+  UNIQUE (organization_id, platform, platform_tenant_id, platform_user_id),
   UNIQUE (organization_id, member_id, platform)
 );
 

@@ -178,12 +178,13 @@ export const memberChatIdentities = pgTable(
       .notNull()
       .references(() => members.id, { onDelete: 'cascade' }),
     platform: text('platform').notNull(),
+    platformTenantId: text('platform_tenant_id').notNull().default(''),
     platformUserId: text('platform_user_id').notNull(),
     displayName: text('display_name'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
   },
   (table) => [
-    unique().on(table.organizationId, table.platform, table.platformUserId),
+    unique().on(table.organizationId, table.platform, table.platformTenantId, table.platformUserId),
     unique().on(table.organizationId, table.memberId, table.platform)
   ]
 );

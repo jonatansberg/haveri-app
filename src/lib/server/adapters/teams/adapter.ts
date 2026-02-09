@@ -11,7 +11,7 @@ import {
 } from '$lib/server/services/incident-workflow-service';
 import {
   resolveMemberByNameHint,
-  resolveMemberByPlatformIdentity
+  resolveOrProvisionMemberByPlatformIdentity
 } from '$lib/server/services/member-identity-service';
 import { ValidationError } from '$lib/server/services/errors';
 
@@ -21,6 +21,7 @@ export interface TeamsInboundMessage {
   text: string;
   channelId: string;
   userId: string;
+  tenantId?: string;
   userName?: string;
   timestamp?: string;
   attachments?: {
@@ -34,11 +35,18 @@ function toRawPayload(payload: TeamsInboundMessage): Record<string, unknown> {
   return { ...payload };
 }
 
-async function resolveMemberId(organizationId: string, platformUserId: string): Promise<string | null> {
-  const row = await resolveMemberByPlatformIdentity({
-    organizationId,
+async function resolveMemberId(input: {
+  organizationId: string;
+  platformUserId: string;
+  platformTenantId?: string | undefined;
+  displayName?: string | undefined;
+}): Promise<string | null> {
+  const row = await resolveOrProvisionMemberByPlatformIdentity({
+    organizationId: input.organizationId,
     platform: 'teams',
-    platformUserId
+    platformUserId: input.platformUserId,
+    ...(input.platformTenantId !== undefined ? { platformTenantId: input.platformTenantId } : {}),
+    ...(input.displayName !== undefined ? { displayName: input.displayName } : {})
   });
   return row?.memberId ?? null;
 }
@@ -83,7 +91,12 @@ export async function handleTeamsInbound(
   organizationId: string,
   payload: TeamsInboundMessage
 ): Promise<Record<string, unknown>> {
-  const memberId = await resolveMemberId(organizationId, payload.userId);
+  const memberId = await resolveMemberId({
+    organizationId,
+    platformUserId: payload.userId,
+    ...(payload.tenantId !== undefined ? { platformTenantId: payload.tenantId } : {}),
+    ...(payload.userName !== undefined ? { displayName: payload.userName } : {})
+  });
   const command = parseTeamsCommand(payload.text);
 
   if (command?.type === 'declare') {

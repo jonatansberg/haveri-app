@@ -17,6 +17,7 @@ const teamsPayloadSchema = z.object({
   text: z.string(),
   channelId: z.string().min(1),
   userId: z.string().min(1),
+  tenantId: z.string().optional(),
   userName: z.string().optional(),
   timestamp: z.string().optional(),
   attachments: z
@@ -45,12 +46,18 @@ const teamsActivityPayloadSchema = z
       .optional(),
     conversation: z
       .object({
-        id: z.string().optional()
+        id: z.string().optional(),
+        tenantId: z.string().optional()
       })
       .optional(),
     channelData: z
       .object({
         channel: z
+          .object({
+            id: z.string().optional()
+          })
+          .optional(),
+        tenant: z
           .object({
             id: z.string().optional()
           })
@@ -205,6 +212,7 @@ function toTeamsInbound(
       text: payload.text,
       channelId: payload.channelId,
       userId: payload.userId,
+      ...(payload.tenantId ? { tenantId: payload.tenantId } : {}),
       ...(payload.userName ? { userName: payload.userName } : {}),
       ...(payload.timestamp ? { timestamp: payload.timestamp } : {}),
       attachments: normalizeAttachments(payload.attachments)
@@ -213,6 +221,7 @@ function toTeamsInbound(
 
   const channelId = payload.channelData?.channel?.id ?? payload.conversation?.id ?? null;
   const userId = payload.from?.aadObjectId ?? payload.from?.id ?? null;
+  const tenantId = payload.channelData?.tenant?.id ?? payload.conversation?.tenantId ?? null;
   const text = stripTeamsMentions(payload.text ?? '');
 
   if (!channelId) {
@@ -229,6 +238,7 @@ function toTeamsInbound(
     text,
     channelId,
     userId,
+    ...(tenantId ? { tenantId } : {}),
     ...(payload.from?.name ? { userName: payload.from.name } : {}),
     ...(payload.timestamp ? { timestamp: payload.timestamp } : {}),
     attachments: normalizeAttachments(payload.attachments)
