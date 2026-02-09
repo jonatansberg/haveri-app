@@ -6,9 +6,19 @@ describe('incident state machine', () => {
     expect(() => assertValidStatusTransition('DECLARED', 'INVESTIGATING')).not.toThrow();
   });
 
-  it('blocks closed to investigating', () => {
-    expect(() => assertValidStatusTransition('CLOSED', 'INVESTIGATING')).toThrow(
+  it('blocks declared to resolved (skip not allowed)', () => {
+    expect(() => assertValidStatusTransition('DECLARED', 'RESOLVED')).toThrow(
       /Illegal incident status transition/
     );
+  });
+
+  it('blocks investigating to resolved (skip not allowed)', () => {
+    expect(() => assertValidStatusTransition('INVESTIGATING', 'RESOLVED')).toThrow(
+      /Illegal incident status transition/
+    );
+  });
+
+  it('allows closed to investigating for reopen flow', () => {
+    expect(() => assertValidStatusTransition('CLOSED', 'INVESTIGATING')).not.toThrow();
   });
 });
