@@ -101,6 +101,7 @@ describe('POST /api/incidents', () => {
       title: 'Conveyor down',
       severity: 'SEV1',
       facilityId: '11111111-1111-4111-8111-111111111111',
+      description: 'Packaging line pressure dropped unexpectedly',
       assignedToMemberId: '22222222-2222-4222-8222-222222222222',
       commsLeadMemberId: '33333333-3333-4333-8333-333333333333',
       chatPlatform: 'teams',
@@ -128,6 +129,7 @@ describe('POST /api/incidents', () => {
         organizationId: 'org-1',
         title: 'Conveyor down',
         severity: 'SEV1',
+        description: 'Packaging line pressure dropped unexpectedly',
         responsibleLeadMemberId: '22222222-2222-4222-8222-222222222222',
         commsLeadMemberId: '33333333-3333-4333-8333-333333333333',
         actorExternalId: 'user-1'

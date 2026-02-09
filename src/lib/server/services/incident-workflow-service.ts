@@ -49,6 +49,7 @@ export interface DeclareIncidentWorkflowInput {
   facilityId: string;
   areaId?: string | null;
   assetIds?: string[];
+  description?: string | null;
   responsibleLeadMemberId?: string | null;
   commsLeadMemberId?: string | null;
   chatPlatform: 'teams' | 'web';
@@ -210,7 +211,8 @@ export async function declareIncidentWithWorkflow(
       payload: {
         workflowVersion: staticIncidentWorkflow.version,
         responsibleLeadMemberId,
-        commsLeadMemberId
+        commsLeadMemberId,
+        description: input.description ?? null
       }
     }
   });

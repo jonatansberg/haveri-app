@@ -78,7 +78,7 @@ This document intentionally keeps the strongest parts of the current build and o
 
 ## 3) Incident Lifecycle
 
-- [ ] **Web declaration parity**
+- [x] **Web declaration parity**
   Web declaration must include `area` (optional), `assets` (optional), and description, and trigger the same triage flow as Teams.
   **AC:** declaring from web and Teams produces equivalent initial event/timeline outcomes.
 

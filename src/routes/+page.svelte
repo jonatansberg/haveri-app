@@ -11,6 +11,7 @@
   import * as Select from '$lib/components/ui/select';
   import { Separator } from '$lib/components/ui/separator';
   import * as Table from '$lib/components/ui/table';
+  import { Textarea } from '$lib/components/ui/textarea';
 
   export let data: PageData;
   export let form: ActionData | null = null;
@@ -21,6 +22,9 @@
   let title = '';
   let declareSeverity: (typeof severities)[number] = 'SEV2';
   let facilityId = data.facilities[0]?.id ?? '';
+  let areaId = '';
+  let assetIds: string[] = [];
+  let description = '';
   let assignedToMemberId = data.members[0]?.id ?? '';
   let commsLeadMemberId = '';
   let filterStatus = data.filters.status[0] ?? '';
@@ -30,6 +34,7 @@
   let filterDateFrom = data.filters.dateFrom;
   let filterDateTo = data.filters.dateTo;
   let incidents = data.incidents;
+  let availableAssets: { id: string; name: string; areaId: string }[] = [];
   let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   function memberLabel(memberId: string): string {
@@ -39,6 +44,20 @@
 
   function facilityLabel(selectedId: string): string {
     return data.facilities.find((facility) => facility.id === selectedId)?.name ?? 'Select facility';
+  }
+
+  function areaLabel(selectedId: string): string {
+    return data.areas.find((area) => area.id === selectedId)?.name ?? 'None';
+  }
+
+  $: availableAssets = areaId
+    ? data.assets.filter((asset) => asset.areaId === areaId)
+    : [];
+
+  $: if (areaId) {
+    assetIds = assetIds.filter((assetId) => availableAssets.some((asset) => asset.id === assetId));
+  } else if (assetIds.length > 0) {
+    assetIds = [];
   }
 
   function severityBadgeClass(severity: string): string {
@@ -161,6 +180,53 @@
               {/each}
             </Select.Content>
           </Select.Root>
+        </div>
+
+        <div class="grid gap-2">
+          <Label for="incident-area">Area (optional)</Label>
+          <Select.Root type="single" name="areaId" bind:value={areaId}>
+            <Select.Trigger id="incident-area" class="w-full justify-between">
+              {areaLabel(areaId)}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="" label="None" />
+              {#each data.areas as area}
+                <Select.Item value={area.id} label={area.name} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
+
+        <div class="grid gap-2">
+          <Label for="incident-assets">Assets (optional)</Label>
+          <select
+            id="incident-assets"
+            name="assetIds"
+            bind:value={assetIds}
+            multiple
+            class="border-input bg-background min-h-28 rounded-md border px-2 py-2 text-sm"
+            disabled={!areaId}
+          >
+            {#if !areaId}
+              <option value="">Select an area first</option>
+            {:else if availableAssets.length === 0}
+              <option value="">No assets in selected area</option>
+            {:else}
+              {#each availableAssets as asset}
+                <option value={asset.id}>{asset.name}</option>
+              {/each}
+            {/if}
+          </select>
+        </div>
+
+        <div class="grid gap-2 lg:col-span-2">
+          <Label for="incident-description">Description (optional)</Label>
+          <Textarea
+            id="incident-description"
+            name="description"
+            bind:value={description}
+            placeholder="What happened and what is currently impacted?"
+          />
         </div>
 
         <div class="grid gap-2">
