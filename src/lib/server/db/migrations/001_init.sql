@@ -131,6 +131,8 @@ CREATE INDEX IF NOT EXISTS idx_incident_events_org_incident_created
   ON incident_events (organization_id, incident_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_incident_events_org_type_created
   ON incident_events (organization_id, event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_incident_events_incident_id
+  ON incident_events (incident_id);
 
 CREATE TABLE IF NOT EXISTS incident_current_state (
   incident_id UUID PRIMARY KEY REFERENCES incidents(id) ON DELETE CASCADE,
@@ -144,6 +146,8 @@ CREATE TABLE IF NOT EXISTS incident_current_state (
 
 CREATE INDEX IF NOT EXISTS idx_incident_current_state_org_status_severity
   ON incident_current_state (organization_id, status, severity);
+CREATE INDEX IF NOT EXISTS idx_incident_current_state_organization_status
+  ON incident_current_state (organization_id, status);
 
 CREATE TABLE IF NOT EXISTS incident_summaries (
   incident_id UUID PRIMARY KEY REFERENCES incidents(id) ON DELETE CASCADE,
@@ -220,6 +224,10 @@ CREATE TABLE IF NOT EXISTS inbound_idempotency (
 
 CREATE INDEX IF NOT EXISTS idx_incidents_org_declared_at
   ON incidents (organization_id, declared_at DESC);
+CREATE INDEX IF NOT EXISTS idx_incidents_organization_id
+  ON incidents (organization_id);
+CREATE INDEX IF NOT EXISTS idx_incidents_facility_id
+  ON incidents (facility_id);
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
   version TEXT PRIMARY KEY,

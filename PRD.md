@@ -40,7 +40,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Implement auto-provision on first Teams interaction and map identity with Teams tenant boundary (`teams_user_id + teams_tenant_id` semantics).
   **AC:** first message from unknown Teams user creates member + mapping; repeat messages resolve same member; no cross-tenant identity collision.
 
-- [ ] **Index and query-shape hardening**
+- [x] **Index and query-shape hardening**
   Add/validate indexes for incident list/filter workloads (`incidents.organization_id`, `incidents.facility_id`, and status path via projection).
   **AC:** explain plans show index use for default incident list and common filters.
 

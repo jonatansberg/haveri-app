@@ -254,7 +254,9 @@ export const incidents = pgTable(
   },
   (table) => [
     unique().on(table.organizationId, table.chatPlatform, table.chatChannelRef),
-    index('idx_incidents_org_declared_at').on(table.organizationId, table.declaredAt)
+    index('idx_incidents_org_declared_at').on(table.organizationId, table.declaredAt),
+    index('idx_incidents_organization_id').on(table.organizationId),
+    index('idx_incidents_facility_id').on(table.facilityId)
   ]
 );
 
@@ -301,6 +303,7 @@ export const incidentEvents = pgTable(
   (table) => [
     unique().on(table.organizationId, table.incidentId, table.sequence),
     unique().on(table.organizationId, table.sourcePlatform, table.sourceEventId),
+    index('idx_incident_events_incident_id').on(table.incidentId),
     index('idx_incident_events_org_incident_created').on(
       table.organizationId,
       table.incidentId,
@@ -333,7 +336,8 @@ export const incidentCurrentState = pgTable(
       table.organizationId,
       table.status,
       table.severity
-    )
+    ),
+    index('idx_incident_current_state_organization_status').on(table.organizationId, table.status)
   ]
 );
 
