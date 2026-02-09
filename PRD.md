@@ -151,7 +151,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Implement polling or websocket updates for new/changed incidents.
   **AC:** newly declared incident appears without full page reload.
 
-- [ ] **Summary edit with annotation event**
+- [x] **Summary edit with annotation event**
   Allow post-resolution summary edits and append `annotation` event on change.
   **AC:** edited fields persist and timeline logs edit metadata.
   **Downstream (P2/P3):** edit history should be retained as high-quality feedback data for AI summarization improvements.

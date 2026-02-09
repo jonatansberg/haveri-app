@@ -162,12 +162,38 @@ export const actions: Actions = {
         whatHappened: parsed.data.whatHappened,
         rootCause: parsed.data.rootCause,
         resolution: parsed.data.resolution,
-        impact: {}
+        impact: dataFromSummaryForm(formData)
       }
     });
     await syncGlobalIncidentAnnouncement({
       organizationId: locals.organizationId,
       incidentId: params.id
+    });
+
+    return { ok: true };
+  },
+  summary: async ({ request, params, locals }) => {
+    const formData = await request.formData();
+    const parsed = resolveSchema.safeParse({
+      whatHappened: formData.get('whatHappened'),
+      rootCause: formData.get('rootCause'),
+      resolution: formData.get('resolution')
+    });
+
+    if (!parsed.success) {
+      return fail(400, { error: parsed.error.flatten() });
+    }
+
+    await incidentService.annotateSummary({
+      organizationId: locals.organizationId,
+      incidentId: params.id,
+      actorExternalId: locals.user?.id ?? null,
+      summary: {
+        whatHappened: parsed.data.whatHappened,
+        rootCause: parsed.data.rootCause,
+        resolution: parsed.data.resolution,
+        impact: dataFromSummaryForm(formData)
+      }
     });
 
     return { ok: true };
@@ -231,3 +257,15 @@ export const actions: Actions = {
     return { ok: true };
   }
 };
+
+function dataFromSummaryForm(formData: FormData): Record<string, unknown> {
+  const duration = formData.get('impactDurationMinutes');
+  const parsedDuration =
+    typeof duration === 'string' && duration.trim().length > 0 ? Number(duration) : null;
+
+  if (parsedDuration !== null && Number.isFinite(parsedDuration) && parsedDuration >= 0) {
+    return { durationMinutes: parsedDuration };
+  }
+
+  return {};
+}

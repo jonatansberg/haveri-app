@@ -9,6 +9,7 @@ import {
 } from '$lib/server/db/schema';
 import type {
   AddEventInput,
+  AnnotateSummaryInput,
   AssignCommsLeadInput,
   AssignLeadInput,
   ChangeSeverityInput,
@@ -347,6 +348,60 @@ export class IncidentServiceImpl implements IncidentService {
           actorMemberId: input.actorMemberId ?? null,
           payload: {
             summary: input.summary
+          }
+        })
+      );
+    });
+  }
+
+  async annotateSummary(input: AnnotateSummaryInput): Promise<void> {
+    await withTransaction(async (tx) => {
+      const current = await lockIncidentCurrentState(tx, input.organizationId, input.incidentId);
+      if (current.status !== 'RESOLVED' && current.status !== 'CLOSED') {
+        throw new ValidationError('Summary can only be edited for resolved or closed incidents');
+      }
+
+      await tx
+        .insert(incidentSummaries)
+        .values({
+          incidentId: input.incidentId,
+          organizationId: input.organizationId,
+          whatHappened: input.summary.whatHappened,
+          rootCause: input.summary.rootCause,
+          resolution: input.summary.resolution,
+          impact: input.summary.impact,
+          aiSummary: input.summary.aiSummary ?? null
+        })
+        .onConflictDoUpdate({
+          target: incidentSummaries.incidentId,
+          set: {
+            whatHappened: input.summary.whatHappened,
+            rootCause: input.summary.rootCause,
+            resolution: input.summary.resolution,
+            impact: input.summary.impact,
+            aiSummary: input.summary.aiSummary ?? null,
+            updatedAt: new Date().toISOString()
+          }
+        });
+
+      await appendIncidentEvent(
+        tx,
+        buildIncidentEvent({
+          organizationId: input.organizationId,
+          incidentId: input.incidentId,
+          eventType: 'annotation',
+          actorType: deriveActorType({
+            actorMemberId: input.actorMemberId ?? null,
+            actorExternalId: input.actorExternalId ?? null
+          }),
+          actorMemberId: input.actorMemberId ?? null,
+          actorExternalId: input.actorExternalId ?? null,
+          payload: {
+            field: 'summary',
+            whatHappened: input.summary.whatHappened,
+            rootCause: input.summary.rootCause,
+            resolution: input.summary.resolution,
+            impact: input.summary.impact
           }
         })
       );

@@ -11,6 +11,7 @@ const mockIncidentService = vi.hoisted(() => ({
   updateStatus: vi.fn(),
   changeSeverity: vi.fn(),
   assignLead: vi.fn(),
+  annotateSummary: vi.fn(),
   resolveIncident: vi.fn(),
   closeIncident: vi.fn()
 }));
@@ -49,6 +50,7 @@ import { POST as closeIncident } from '../../routes/api/incidents/[id]/close/+se
 import { POST as resolveIncident } from '../../routes/api/incidents/[id]/resolve/+server';
 import { POST as severityIncident } from '../../routes/api/incidents/[id]/severity/+server';
 import { POST as statusIncident } from '../../routes/api/incidents/[id]/status/+server';
+import { POST as summaryIncident } from '../../routes/api/incidents/[id]/summary/+server';
 
 describe('incident action API routes', () => {
   beforeEach(() => {
@@ -157,6 +159,34 @@ describe('incident action API routes', () => {
         rootCause: 'Jam at station 4',
         resolution: 'Cleared jam and restarted line',
         impact: { durationMinutes: 22 }
+      }
+    });
+  });
+
+  it('updates incident summary and appends annotation metadata through service', async () => {
+    mockReadJson.mockResolvedValue({
+      whatHappened: 'Updated description',
+      rootCause: 'Updated cause',
+      resolution: 'Updated fix',
+      impact: { durationMinutes: 12 }
+    });
+
+    const response = await summaryIncident({
+      params: { id: 'inc-55' },
+      request: new Request('http://localhost/api/incidents/inc-55/summary', { method: 'POST' }),
+      locals: { organizationId: 'org-1' }
+    } as Parameters<typeof summaryIncident>[0]);
+
+    expect(response.status).toBe(200);
+    expect(mockIncidentService.annotateSummary).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-55',
+      actorExternalId: 'user-1',
+      summary: {
+        whatHappened: 'Updated description',
+        rootCause: 'Updated cause',
+        resolution: 'Updated fix',
+        impact: { durationMinutes: 12 }
       }
     });
   });

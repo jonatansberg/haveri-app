@@ -30,7 +30,13 @@
   let whatHappened = data.summary?.whatHappened ?? '';
   let rootCause = data.summary?.rootCause ?? '';
   let resolution = data.summary?.resolution ?? '';
+  const initialDuration =
+    typeof data.summary?.impact?.['durationMinutes'] === 'number'
+      ? String(data.summary.impact['durationMinutes'])
+      : '';
+  let impactDurationMinutes = initialDuration;
   let followUpsInput = '';
+  const canEditSummary = data.incident.status === 'RESOLVED' || data.incident.status === 'CLOSED';
 
   function memberLabel(memberId: string): string {
     const member = data.members.find((candidate) => candidate.id === memberId);
@@ -191,6 +197,17 @@
             <Textarea id="resolution" name="resolution" bind:value={resolution} required />
           </div>
 
+          <div class="grid gap-2">
+            <Label for="impact-duration">Impact duration (minutes)</Label>
+            <Input
+              id="impact-duration"
+              name="impactDurationMinutes"
+              bind:value={impactDurationMinutes}
+              inputmode="numeric"
+              placeholder="45"
+            />
+          </div>
+
           <Button type="submit" class="w-full sm:w-auto">Mark resolved</Button>
         </form>
 
@@ -228,7 +245,40 @@
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Resolution</p>
               <p>{data.summary.resolution}</p>
             </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Impact</p>
+              <p>{JSON.stringify(data.summary.impact)}</p>
+            </div>
           </div>
+
+          {#if canEditSummary}
+            <Separator class="my-4" />
+            <form method="POST" action="?/summary" class="grid gap-3">
+              <div class="grid gap-2">
+                <Label for="summary-what-happened">What happened</Label>
+                <Textarea id="summary-what-happened" name="whatHappened" bind:value={whatHappened} required />
+              </div>
+              <div class="grid gap-2">
+                <Label for="summary-root-cause">Root cause</Label>
+                <Textarea id="summary-root-cause" name="rootCause" bind:value={rootCause} required />
+              </div>
+              <div class="grid gap-2">
+                <Label for="summary-resolution">Resolution</Label>
+                <Textarea id="summary-resolution" name="resolution" bind:value={resolution} required />
+              </div>
+              <div class="grid gap-2">
+                <Label for="summary-impact-duration">Impact duration (minutes)</Label>
+                <Input
+                  id="summary-impact-duration"
+                  name="impactDurationMinutes"
+                  bind:value={impactDurationMinutes}
+                  inputmode="numeric"
+                  placeholder="45"
+                />
+              </div>
+              <Button type="submit" variant="outline" class="w-full sm:w-auto">Save summary edits</Button>
+            </form>
+          {/if}
         {:else}
           <Alert.Root class="border-warm-300 bg-warm-100/70 text-slate-800">
             <Info />

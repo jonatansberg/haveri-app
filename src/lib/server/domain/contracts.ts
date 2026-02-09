@@ -72,6 +72,14 @@ export interface ResolveIncidentInput {
   summary: IncidentSummaryInput;
 }
 
+export interface AnnotateSummaryInput {
+  organizationId: string;
+  incidentId: string;
+  actorMemberId?: string | null;
+  actorExternalId?: string | null;
+  summary: IncidentSummaryInput;
+}
+
 export interface CloseIncidentInput {
   organizationId: string;
   incidentId: string;
@@ -92,5 +100,6 @@ export interface IncidentService {
   setAnnouncementRefs(input: SetAnnouncementRefsInput): Promise<void>;
   addEvent(input: AddEventInput): Promise<void>;
   resolveIncident(input: ResolveIncidentInput): Promise<void>;
+  annotateSummary(input: AnnotateSummaryInput): Promise<void>;
   closeIncident(input: CloseIncidentInput): Promise<void>;
 }
