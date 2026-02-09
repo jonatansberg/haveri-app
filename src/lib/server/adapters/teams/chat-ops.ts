@@ -355,18 +355,43 @@ export async function createTeamsIncidentChannel(input: {
   }
 
   const graphClient = createTeamsGraphClient();
-  const requestBody: Parameters<typeof graphEndpoints.teams.channels.create>[0] = {
-    '@odata.type': '#microsoft.graph.channel',
-    displayName: channelName,
-    description: `Haveri incident channel for ${input.severity}`,
-    membershipType: 'standard'
-  };
-
   const pathParams: Parameters<typeof graphEndpoints.teams.channels.create>[1] = {
     'team-id': teamId
   };
 
-  const response = await graphClient.call(graphEndpoints.teams.channels.create, requestBody, pathParams);
+  let response: unknown;
+  try {
+    // Prefer chat layout so incident channels use threaded chat-style conversations.
+    const requestBodyWithChatLayout = {
+      '@odata.type': '#microsoft.graph.channel',
+      displayName: channelName,
+      description: `Haveri incident channel for ${input.severity}`,
+      membershipType: 'standard',
+      layoutType: 'chat'
+    } as Parameters<typeof graphEndpoints.teams.channels.create>[0];
+
+    response = await graphClient.call(
+      graphEndpoints.teams.channels.create,
+      requestBodyWithChatLayout,
+      pathParams
+    );
+  } catch (error) {
+    console.warn('Teams channel chat layout creation failed; retrying with default layout', {
+      teamId,
+      channelName,
+      error
+    });
+
+    const fallbackRequestBody: Parameters<typeof graphEndpoints.teams.channels.create>[0] = {
+      '@odata.type': '#microsoft.graph.channel',
+      displayName: channelName,
+      description: `Haveri incident channel for ${input.severity}`,
+      membershipType: 'standard'
+    };
+
+    response = await graphClient.call(graphEndpoints.teams.channels.create, fallbackRequestBody, pathParams);
+  }
+
   const channelId = extractResponseId(response);
 
   if (!channelId) {

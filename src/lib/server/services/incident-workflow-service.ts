@@ -288,6 +288,8 @@ export async function declareIncidentWithWorkflow(
     }
   });
 
+  let incidentDetailForCards: Awaited<ReturnType<typeof getIncidentDetail>> | null = null;
+
   if (input.chatPlatform === 'teams') {
     const adapter = input.chatAdapter ?? getChatAdapter('teams');
     try {
@@ -308,13 +310,26 @@ export async function declareIncidentWithWorkflow(
         error
       });
     }
+
+    try {
+      incidentDetailForCards ??= await getIncidentDetail(input.organizationId, incident.id);
+      const statusCard = buildIncidentCardFromDetail(adapter, incidentDetailForCards);
+      await adapter.sendCard(incidentChannelRef, statusCard);
+    } catch (error) {
+      console.warn('Failed to post Teams incident status card', {
+        organizationId: input.organizationId,
+        incidentId: incident.id,
+        channelRef: incidentChannelRef,
+        error
+      });
+    }
   }
 
   if (input.chatPlatform === 'teams' && globalChannelRef) {
     const adapter = input.chatAdapter ?? getChatAdapter('teams');
     try {
-      const detail = await getIncidentDetail(input.organizationId, incident.id);
-      const card = buildIncidentCardFromDetail(adapter, detail);
+      incidentDetailForCards ??= await getIncidentDetail(input.organizationId, incident.id);
+      const card = buildIncidentCardFromDetail(adapter, incidentDetailForCards);
 
       const globalPost = await adapter.sendCard(globalChannelRef, card);
 
