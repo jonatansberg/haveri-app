@@ -1,6 +1,7 @@
 import { building } from '$app/environment';
 import { auth } from '$lib/server/auth';
 import { getDefaultOrgId } from '$lib/server/services/env';
+import { resolveOrganizationContextForUser } from '$lib/server/services/organization-context-service';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import type { Handle } from '@sveltejs/kit';
 
@@ -48,7 +49,11 @@ function logRequest(level: 'info' | 'warn' | 'error', message: string, details: 
 
 export const handle: Handle = async ({ event, resolve }) => {
   const startedAt = Date.now();
-  const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
+  const requestedOrgId = event.request.headers.get('x-org-id');
+  const requestedOrgSlug = event.request.headers.get('x-org-slug');
+  const defaultOrgId = getDefaultOrgId();
+  let orgId = requestedOrgId ?? defaultOrgId;
+  let orgSlug = 'default';
 
   try {
     const session = await auth.api.getSession({
@@ -57,7 +62,28 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     event.locals.session = session?.session ?? null;
     event.locals.user = session?.user ?? null;
+    if (session?.user?.id) {
+      const organizationContext = await resolveOrganizationContextForUser({
+        userId: session.user.id,
+        fallbackOrganizationId: defaultOrgId,
+        ...(requestedOrgId ? { requestedOrganizationId: requestedOrgId } : {}),
+        ...(requestedOrgSlug ? { requestedOrganizationSlug: requestedOrgSlug } : {})
+      });
+
+      if (!organizationContext) {
+        logRequest('warn', 'Rejected request for unauthorized organization scope', {
+          ...buildRequestLogContext(event, orgId, session.user.id),
+          requestedOrgId,
+          requestedOrgSlug
+        });
+        return new Response('Forbidden', { status: 403 });
+      }
+
+      orgId = organizationContext.organizationId;
+      orgSlug = organizationContext.organizationSlug;
+    }
     event.locals.organizationId = orgId;
+    event.locals.organizationSlug = orgSlug;
 
     const response = await svelteKitHandler({ event, resolve, auth, building });
     const durationMs = Date.now() - startedAt;

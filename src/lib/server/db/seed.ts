@@ -17,7 +17,7 @@ const globalIncidentChannelRef = getTeamsGlobalIncidentChannel();
 async function seed(): Promise<void> {
   await db
     .insert(organizations)
-    .values({ id: defaultOrgId, name: 'Acme Manufacturing' })
+    .values({ id: defaultOrgId, name: 'Acme Manufacturing', slug: 'acme-manufacturing' })
     .onConflictDoNothing({ target: organizations.id });
 
   await db

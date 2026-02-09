@@ -30,6 +30,7 @@ export const followUpStatusEnum = pgEnum('follow_up_status', ['OPEN', 'IN_PROGRE
 export const organizations = pgTable('organizations', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
 });
 
@@ -59,6 +60,25 @@ export const authUsers = pgTable('auth_user', {
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
 });
+
+export const organizationMemberships = pgTable(
+  'organization_memberships',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    role: text('role').notNull().default('member'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
+  },
+  (table) => [
+    unique().on(table.organizationId, table.userId),
+    index('idx_organization_memberships_user').on(table.userId)
+  ]
+);
 
 export const authSessions = pgTable(
   'auth_session',

@@ -9,6 +9,7 @@ declare global {
       session: AuthSessionData | null;
       user: AuthUser | null;
       organizationId: string;
+      organizationSlug: string;
     }
     // interface PageData {}
     // interface PageState {}

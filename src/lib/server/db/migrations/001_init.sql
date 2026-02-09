@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS organizations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -243,6 +244,18 @@ CREATE TABLE IF NOT EXISTS auth_user (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS organization_memberships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (organization_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_organization_memberships_user
+  ON organization_memberships(user_id);
 
 CREATE TABLE IF NOT EXISTS auth_session (
   id TEXT PRIMARY KEY,
