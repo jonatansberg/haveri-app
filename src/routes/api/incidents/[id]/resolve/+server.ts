@@ -10,7 +10,16 @@ const payloadSchema = z.object({
   whatHappened: z.string().min(5),
   rootCause: z.string().min(3),
   resolution: z.string().min(3),
-  impact: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({})
+  impact: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
+  followUps: z
+    .array(
+      z.object({
+        description: z.string().min(3),
+        assignedToMemberId: z.string().uuid().optional().nullable(),
+        dueDate: z.string().date().optional().nullable()
+      })
+    )
+    .default([])
 });
 
 export const POST: RequestHandler = async (event) => {
@@ -27,7 +36,12 @@ export const POST: RequestHandler = async (event) => {
         rootCause: payload.rootCause,
         resolution: payload.resolution,
         impact: payload.impact
-      }
+      },
+      followUps: payload.followUps.map((followUp) => ({
+        description: followUp.description,
+        assignedToMemberId: followUp.assignedToMemberId ?? null,
+        dueDate: followUp.dueDate ?? null
+      }))
     });
     await syncGlobalIncidentAnnouncement({
       organizationId: getOrganizationId(event),

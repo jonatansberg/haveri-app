@@ -70,6 +70,11 @@ export interface ResolveIncidentInput {
   incidentId: string;
   actorMemberId?: string | null;
   summary: IncidentSummaryInput;
+  followUps?: {
+    description: string;
+    assignedToMemberId?: string | null;
+    dueDate?: string | null;
+  }[];
 }
 
 export interface AnnotateSummaryInput {

@@ -141,7 +141,14 @@ describe('incident action API routes', () => {
       whatHappened: 'Conveyor line halted unexpectedly',
       rootCause: 'Jam at station 4',
       resolution: 'Cleared jam and restarted line',
-      impact: { durationMinutes: 22 }
+      impact: { durationMinutes: 22 },
+      followUps: [
+        {
+          description: 'Inspect station 4 sensors',
+          assignedToMemberId: '11111111-1111-4111-8111-111111111111',
+          dueDate: '2026-03-01'
+        }
+      ]
     });
 
     const response = await resolveIncident({
@@ -159,7 +166,14 @@ describe('incident action API routes', () => {
         rootCause: 'Jam at station 4',
         resolution: 'Cleared jam and restarted line',
         impact: { durationMinutes: 22 }
-      }
+      },
+      followUps: [
+        {
+          description: 'Inspect station 4 sensors',
+          assignedToMemberId: '11111111-1111-4111-8111-111111111111',
+          dueDate: '2026-03-01'
+        }
+      ]
     });
   });
 

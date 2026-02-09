@@ -153,3 +153,57 @@ describe('incidentService.annotateSummary', () => {
     });
   });
 });
+
+describe('incidentService.resolveIncident', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLockIncidentCurrentState.mockResolvedValue({
+      status: 'MITIGATED',
+      severity: 'SEV2',
+      assignedToMemberId: 'member-1',
+      lastEventSequence: 8
+    });
+
+    mockWithTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+      const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
+      const returning = vi.fn().mockResolvedValue([{ id: 'follow-up-1' }]);
+      const values = vi.fn(() => ({ onConflictDoUpdate, returning }));
+      const insert = vi.fn(() => ({ values }));
+      const update = vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue(undefined)
+        }))
+      }));
+      return callback({ insert, update });
+    });
+  });
+
+  it('creates follow-ups during resolution when provided', async () => {
+    await incidentService.resolveIncident({
+      organizationId: 'org-1',
+      incidentId: 'inc-99',
+      actorMemberId: 'member-2',
+      summary: {
+        whatHappened: 'Incident details',
+        rootCause: 'Root cause details',
+        resolution: 'Resolution details',
+        impact: { durationMinutes: 30 }
+      },
+      followUps: [
+        {
+          description: 'Inspect seals',
+          assignedToMemberId: 'member-3',
+          dueDate: '2026-03-03'
+        }
+      ]
+    });
+
+    const eventTypes = mockAppendIncidentEvent.mock.calls.map((call) => {
+      const event = call[1] as { eventType: string };
+      return event.eventType;
+    });
+
+    expect(eventTypes).toContain('follow_up_created');
+    expect(eventTypes).toContain('resolved');
+  });
+});

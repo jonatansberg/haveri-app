@@ -35,6 +35,7 @@
       ? String(data.summary.impact['durationMinutes'])
       : '';
   let impactDurationMinutes = initialDuration;
+  let resolveFollowUpsInput = '';
   let followUpsInput = '';
   const canEditSummary = data.incident.status === 'RESOLVED' || data.incident.status === 'CLOSED';
 
@@ -206,6 +207,11 @@
               inputmode="numeric"
               placeholder="45"
             />
+          </div>
+
+          <div class="grid gap-2">
+            <Label for="resolve-follow-ups">Follow-up tasks (one per line)</Label>
+            <Textarea id="resolve-follow-ups" name="resolveFollowUps" bind:value={resolveFollowUpsInput} />
           </div>
 
           <Button type="submit" class="w-full sm:w-auto">Mark resolved</Button>

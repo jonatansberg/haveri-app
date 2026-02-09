@@ -163,7 +163,8 @@ export const actions: Actions = {
         rootCause: parsed.data.rootCause,
         resolution: parsed.data.resolution,
         impact: dataFromSummaryForm(formData)
-      }
+      },
+      followUps: parseFollowUpsFromMultiline(formData.get('resolveFollowUps'))
     });
     await syncGlobalIncidentAnnouncement({
       organizationId: locals.organizationId,
@@ -268,4 +269,20 @@ function dataFromSummaryForm(formData: FormData): Record<string, unknown> {
   }
 
   return {};
+}
+
+function parseFollowUpsFromMultiline(value: FormDataEntryValue | null): {
+  description: string;
+  assignedToMemberId?: string | null;
+  dueDate?: string | null;
+}[] {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((description) => ({ description }));
 }

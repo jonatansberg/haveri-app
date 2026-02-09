@@ -335,6 +335,40 @@ export class IncidentServiceImpl implements IncidentService {
           }
         });
 
+      for (const followUp of input.followUps ?? []) {
+        const [created] = await tx
+          .insert(followUps)
+          .values({
+            organizationId: input.organizationId,
+            incidentId: input.incidentId,
+            description: followUp.description,
+            assignedToMemberId: followUp.assignedToMemberId ?? null,
+            dueDate: followUp.dueDate ?? null,
+            status: 'OPEN'
+          })
+          .returning({ id: followUps.id });
+
+        await appendIncidentEvent(
+          tx,
+          buildIncidentEvent({
+            organizationId: input.organizationId,
+            incidentId: input.incidentId,
+            eventType: 'follow_up_created',
+            actorType: deriveActorType({
+              actorMemberId: input.actorMemberId ?? null,
+              actorExternalId: null
+            }),
+            actorMemberId: input.actorMemberId ?? null,
+            payload: {
+              followUpId: created?.id ?? null,
+              description: followUp.description,
+              assignedToMemberId: followUp.assignedToMemberId ?? null,
+              dueDate: followUp.dueDate ?? null
+            }
+          })
+        );
+      }
+
       await appendIncidentEvent(
         tx,
         buildIncidentEvent({

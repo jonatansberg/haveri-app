@@ -91,7 +91,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Restrict severity changes after resolution and trigger re-routing on allowed changes.
   **AC:** SEV change appends event, reevaluates escalation policy, and emits new notifications when required.
 
-- [ ] **Resolve flow follow-up creation**
+- [x] **Resolve flow follow-up creation**
   Move follow-up creation into resolve flow (not only close), with assignee fields captured from structured input.
   **AC:** resolving with N actions creates N linked follow-ups and posts summary message to Teams.
 
