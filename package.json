@@ -19,7 +19,9 @@
     "db:seed": "sh -c 'if [ -f .env ]; then node --env-file .env --import tsx src/lib/server/db/seed.ts; else node --import tsx src/lib/server/db/seed.ts; fi'",
     "teams:build-package": "sh -c 'if [ -f .env.teams-package ]; then node --env-file .env --env-file .env.teams-package --import tsx src/scripts/teams/build-app-package.ts; else node --env-file .env --import tsx src/scripts/teams/build-app-package.ts; fi'",
     "teams:check": "sh -c 'if [ -f .env.teams-package ]; then node --env-file .env --env-file .env.teams-package --import tsx src/scripts/teams/print-e2e-checklist.ts; else node --env-file .env --import tsx src/scripts/teams/print-e2e-checklist.ts; fi'",
-    "teams:zip-package": "cd teams/appPackage && zip -r ../haveri-teams-app.zip manifest.json color.png outline.png"
+    "teams:zip-package": "cd teams/appPackage && zip -r ../haveri-teams-app.zip manifest.json color.png outline.png",
+    "ops:check-residency": "tsx src/scripts/ops/check-data-residency.ts",
+    "ops:backup": "src/scripts/ops/backup-postgres.sh"
   },
   "dependencies": {
     "@microsoft/teams.api": "^2.0.5",
