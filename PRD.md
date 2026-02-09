@@ -147,7 +147,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Add status/severity/facility/area/date filters and default open-by-severity ordering.
   **AC:** list behavior matches PRD filter/sort expectations.
 
-- [ ] **Near-real-time incident list updates**
+- [x] **Near-real-time incident list updates**
   Implement polling or websocket updates for new/changed incidents.
   **AC:** newly declared incident appears without full page reload.
 

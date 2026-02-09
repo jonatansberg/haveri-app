@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy, onMount } from 'svelte';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import type { ActionData, PageData } from './$types';
   import * as Alert from '$lib/components/ui/alert';
@@ -28,6 +29,8 @@
   let filterAreaId = data.filters.areaId;
   let filterDateFrom = data.filters.dateFrom;
   let filterDateTo = data.filters.dateTo;
+  let incidents = data.incidents;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   function memberLabel(memberId: string): string {
     const member = data.members.find((candidate) => candidate.id === memberId);
@@ -49,6 +52,57 @@
 
     return 'border-transparent bg-sev3 text-white';
   }
+
+  function buildFilterQuery(): string {
+    const params = new URLSearchParams();
+
+    if (filterStatus) {
+      params.append('status', filterStatus);
+    }
+    if (filterSeverity) {
+      params.append('severity', filterSeverity);
+    }
+    if (filterFacilityId) {
+      params.append('facilityId', filterFacilityId);
+    }
+    if (filterAreaId) {
+      params.append('areaId', filterAreaId);
+    }
+    if (filterDateFrom) {
+      params.append('dateFrom', filterDateFrom);
+    }
+    if (filterDateTo) {
+      params.append('dateTo', filterDateTo);
+    }
+
+    return params.toString();
+  }
+
+  async function refreshIncidents(): Promise<void> {
+    const query = buildFilterQuery();
+    const response = await fetch(`/api/incidents${query ? `?${query}` : ''}`);
+    if (!response.ok) {
+      return;
+    }
+
+    const body = (await response.json()) as {
+      incidents: typeof data.incidents;
+    };
+    incidents = body.incidents;
+  }
+
+  onMount(() => {
+    pollTimer = setInterval(() => {
+      void refreshIncidents();
+    }, 15000);
+  });
+
+  onDestroy(() => {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  });
 </script>
 
 <section class="grid gap-6">
@@ -152,7 +206,7 @@
     </Card.Header>
 
     <Card.Content>
-      {#if data.incidents.length === 0}
+      {#if incidents.length === 0}
         <Alert.Root class="border-warm-300 bg-warm-100/70 text-slate-800">
           <AlertTriangle />
           <Alert.Title>No incidents yet</Alert.Title>
@@ -224,7 +278,7 @@
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {#each data.incidents as incident}
+              {#each incidents as incident}
                 <Table.Row>
                   <Table.Cell>
                     <a class="font-medium text-slate-900 underline-offset-4 hover:underline" href={`/incidents/${incident.id}`}>
