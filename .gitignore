@@ -6,3 +6,7 @@ build
 coverage
 teams/*.zip
 teams/appPackage/manifest.json
+playwright-report
+test-results
+.playwright
+playwright/.auth
