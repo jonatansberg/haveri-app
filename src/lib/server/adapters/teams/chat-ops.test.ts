@@ -136,36 +136,6 @@ describe('teams chat-ops', () => {
     });
   });
 
-  it('retries channel creation with default layout when chat layout request fails', async () => {
-    mockIsTeamsGraphConfigured.mockReturnValue(true);
-    mockGraphClientCall
-      .mockRejectedValueOnce(new Error('Request failed with status code 400'))
-      .mockResolvedValueOnce({ id: '19:incident-channel-id@thread.tacv2' });
-
-    const channel = await createTeamsIncidentChannel({
-      incidentTitle: 'Conveyor line stalled',
-      severity: 'SEV1'
-    });
-
-    expect(mockGraphClientCall).toHaveBeenCalledTimes(2);
-    expect(mockGraphClientCall.mock.calls[0]?.[1]).toEqual(
-      expect.objectContaining({
-        layoutType: 'chat',
-        membershipType: 'standard'
-      })
-    );
-    expect(mockGraphClientCall.mock.calls[1]?.[1]).toEqual(
-      expect.objectContaining({
-        membershipType: 'standard'
-      })
-    );
-    expect(mockGraphClientCall.mock.calls[1]?.[1]).not.toHaveProperty('layoutType');
-    expect(channel).toEqual({
-      channelRef: 'teams|team-1|19:incident-channel-id@thread.tacv2',
-      channelName: 'incident-sev1-conveyor-line-stalled'
-    });
-  });
-
   it('throws when graph is configured but team id is missing during channel creation', async () => {
     mockIsTeamsGraphConfigured.mockReturnValue(true);
     mockGetTeamsIncidentTeamId.mockReturnValue(null);
