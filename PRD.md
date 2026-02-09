@@ -87,7 +87,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Finalize and implement documented transition policy per PRD exception.
   **AC:** invalid transitions are blocked with explicit errors; reopen rule works as decided.
 
-- [ ] **Severity change rules**
+- [x] **Severity change rules**
   Restrict severity changes after resolution and trigger re-routing on allowed changes.
   **AC:** SEV change appends event, reevaluates escalation policy, and emits new notifications when required.
 

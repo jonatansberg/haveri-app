@@ -21,7 +21,9 @@ import type {
 } from '$lib/server/domain/contracts';
 import { assertValidStatusTransition } from '$lib/server/domain/state-machine';
 import type { DeclaredIncident, IncidentEvent } from '$lib/shared/domain';
+import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
 import { appendIncidentEvent, insertInitialIncidentEvent, lockIncidentCurrentState } from './event-store';
+import { ValidationError } from './errors';
 
 function deriveActorType(input: {
   actorMemberId: string | null | undefined;
@@ -184,6 +186,9 @@ export class IncidentServiceImpl implements IncidentService {
   async changeSeverity(input: ChangeSeverityInput): Promise<void> {
     await withTransaction(async (tx) => {
       const current = await lockIncidentCurrentState(tx, input.organizationId, input.incidentId);
+      if (current.status === 'RESOLVED' || current.status === 'CLOSED') {
+        throw new ValidationError('Severity cannot be changed after incident resolution');
+      }
 
       await appendIncidentEvent(
         tx,
@@ -205,6 +210,11 @@ export class IncidentServiceImpl implements IncidentService {
           severity: input.severity
         }
       );
+    });
+
+    await scheduleEscalationForIncident({
+      organizationId: input.organizationId,
+      incidentId: input.incidentId
     });
   }
 
