@@ -64,6 +64,9 @@ describe('teams bot-client', () => {
       serviceUrl: 'https://smba.trafficmanager.net/teams'
     });
     expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0]?.[0]).toBe(
+      'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/token'
+    );
     const postCall = mockFetch.mock.calls[1];
     expect(postCall?.[0]).toBe('https://smba.trafficmanager.net/teams/v3/conversations');
     expect(postCall?.[1]?.method).toBe('POST');
@@ -94,6 +97,9 @@ describe('teams bot-client', () => {
     });
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0]?.[0]).toBe(
+      'https://login.microsoftonline.com/tenant-1/oauth2/v2.0/token'
+    );
     const updateCall = mockFetch.mock.calls[1];
     expect(updateCall?.[0]).toBe(
       'https://smba.trafficmanager.net/teams/v3/conversations/conversation-1/activities/activity-1'

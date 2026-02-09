@@ -7,7 +7,6 @@ import {
 import { ValidationError } from '$lib/server/services/errors';
 
 const BOT_CONNECTOR_SCOPE = 'https://api.botframework.com/.default';
-const BOT_CONNECTOR_TOKEN_URL = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token';
 const ADAPTIVE_CARD_CONTENT_TYPE = 'application/vnd.microsoft.card.adaptive';
 
 interface CachedConnectorToken {
@@ -23,6 +22,10 @@ interface ConnectorTokenResponse {
 }
 
 let cachedConnectorToken: CachedConnectorToken | null = null;
+
+function getBotConnectorTokenUrl(tenantId: string): string {
+  return `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
+}
 
 function normalizeServiceUrl(value: string): string {
   return value.replace(/\/+$/, '');
@@ -83,7 +86,7 @@ async function getBotConnectorAccessToken(): Promise<string> {
     scope: BOT_CONNECTOR_SCOPE
   });
 
-  const response = await fetch(BOT_CONNECTOR_TOKEN_URL, {
+  const response = await fetch(getBotConnectorTokenUrl(config.tenantId), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
