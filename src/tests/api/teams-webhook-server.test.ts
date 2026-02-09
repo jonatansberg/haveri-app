@@ -4,6 +4,7 @@ import { createHmac } from 'node:crypto';
 const mockReadJson = vi.hoisted(() => vi.fn());
 const mockHandleTeamsInbound = vi.hoisted(() => vi.fn());
 const mockGetDefaultOrgId = vi.hoisted(() => vi.fn());
+const mockGetTeamsBotAppId = vi.hoisted(() => vi.fn());
 const mockGetTeamsWebhookSecret = vi.hoisted(() => vi.fn());
 const mockGetIdempotentResponse = vi.hoisted(() => vi.fn());
 const mockStoreIdempotentResponse = vi.hoisted(() => vi.fn());
@@ -22,6 +23,7 @@ vi.mock('$lib/server/adapters/teams/adapter', () => ({
 
 vi.mock('$lib/server/services/env', () => ({
   getDefaultOrgId: mockGetDefaultOrgId,
+  getTeamsBotAppId: mockGetTeamsBotAppId,
   getTeamsWebhookSecret: mockGetTeamsWebhookSecret
 }));
 
@@ -36,6 +38,7 @@ describe('POST /api/chat/teams/webhook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDefaultOrgId.mockReturnValue('org-default');
+    mockGetTeamsBotAppId.mockReturnValue(null);
     mockGetTeamsWebhookSecret.mockReturnValue(null);
     mockGetIdempotentResponse.mockResolvedValue(null);
     mockHandleTeamsInbound.mockResolvedValue({ ok: true, action: 'handled' });
@@ -60,6 +63,56 @@ describe('POST /api/chat/teams/webhook', () => {
       error: 'Unauthorized webhook request'
     });
     expect(mockHandleTeamsInbound).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when bot app id is configured and auth bearer token is missing', async () => {
+    mockGetTeamsBotAppId.mockReturnValue('bot-app-id');
+    mockReadJson.mockResolvedValue({
+      id: 'evt-auth-token',
+      type: 'message',
+      text: 'hello',
+      channelId: '19:channel@thread.tacv2',
+      userId: 'user-1'
+    });
+
+    const response = await POST({
+      request: new Request('http://localhost/api/chat/teams/webhook', { method: 'POST' })
+    } as Parameters<typeof POST>[0]);
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Unauthorized webhook request'
+    });
+    expect(mockHandleTeamsInbound).not.toHaveBeenCalled();
+  });
+
+  it('accepts bearer token with matching audience and future expiration', async () => {
+    const payload = {
+      id: 'evt-auth-jwt',
+      type: 'message',
+      text: 'hello',
+      channelId: '19:channel@thread.tacv2',
+      userId: 'user-1'
+    };
+    const tokenPayload = {
+      aud: 'bot-app-id',
+      exp: Math.floor(Date.now() / 1000) + 600,
+      iss: 'https://api.botframework.com'
+    };
+    const encodedPayload = Buffer.from(JSON.stringify(tokenPayload)).toString('base64url');
+    const fakeToken = `header.${encodedPayload}.signature`;
+    mockGetTeamsBotAppId.mockReturnValue('bot-app-id');
+    mockReadJson.mockResolvedValue(payload);
+
+    const response = await POST({
+      request: new Request('http://localhost/api/chat/teams/webhook', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${fakeToken}` }
+      })
+    } as Parameters<typeof POST>[0]);
+
+    expect(response.status).toBe(200);
+    expect(mockHandleTeamsInbound).toHaveBeenCalledTimes(1);
   });
 
   it('accepts webhook requests signed with the shared secret', async () => {

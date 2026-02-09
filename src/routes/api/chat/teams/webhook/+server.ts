@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
 import { handleTeamsInbound } from '$lib/server/adapters/teams/adapter';
 import type { TeamsInboundMessage } from '$lib/server/adapters/teams/adapter';
-import { getDefaultOrgId, getTeamsWebhookSecret } from '$lib/server/services/env';
+import { getDefaultOrgId, getTeamsBotAppId, getTeamsWebhookSecret } from '$lib/server/services/env';
 import { ValidationError } from '$lib/server/services/errors';
 import {
   getIdempotentResponse,
@@ -209,6 +209,54 @@ function verifyWebhookSignature(input: {
   return timingSafeEqual(Buffer.from(normalized), Buffer.from(expected));
 }
 
+function decodeBase64Url(value: string): string | null {
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    return Buffer.from(padded, 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+function verifyBotBearerToken(authHeader: string | null, expectedAudience: string): boolean {
+  if (!authHeader?.startsWith('Bearer ')) {
+    return false;
+  }
+
+  const token = authHeader.slice('Bearer '.length).trim();
+  const parts = token.split('.');
+  if (parts.length !== 3 || !parts[1]) {
+    return false;
+  }
+
+  const payloadJson = decodeBase64Url(parts[1]);
+  if (!payloadJson) {
+    return false;
+  }
+
+  try {
+    const payload = JSON.parse(payloadJson) as {
+      aud?: string;
+      exp?: number;
+      iss?: string;
+    };
+    if (payload.aud !== expectedAudience) {
+      return false;
+    }
+    if (typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now()) {
+      return false;
+    }
+    if (typeof payload.iss !== 'string' || payload.iss.length === 0) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function isLegacyTeamsWebhookPayload(
   payload: LegacyTeamsWebhookPayload | TeamsActivityWebhookPayload
 ): payload is LegacyTeamsWebhookPayload {
@@ -268,11 +316,23 @@ function toTeamsInbound(
 export const POST: RequestHandler = async (event) => {
   const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
   const context = getRequestLogContext(event, orgId);
+  const configuredBotAppId = getTeamsBotAppId();
   const configuredWebhookSecret = getTeamsWebhookSecret();
+  const authorizationHeader = event.request.headers.get('authorization');
   const providedWebhookSignature = event.request.headers.get('x-haveri-webhook-signature');
   const providedWebhookSecret = event.request.headers.get('x-haveri-webhook-secret');
 
   try {
+    if (
+      configuredBotAppId &&
+      !verifyBotBearerToken(authorizationHeader, configuredBotAppId)
+    ) {
+      logWebhookEvent('warn', 'Teams webhook rejected due to invalid bot authorization token', {
+        ...context
+      });
+      return json({ error: 'Unauthorized webhook request' }, { status: 401 });
+    }
+
     const rawPayload = await readJson<unknown>(event.request);
 
     if (configuredWebhookSecret) {

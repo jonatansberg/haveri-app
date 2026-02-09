@@ -55,7 +55,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Introduce a formal adapter interface and depend on it from core services.
   **AC:** incident workflow runs unchanged with mock adapter vs Teams adapter.
 
-- [ ] **Teams bot verification and framework compliance**
+- [x] **Teams bot verification and framework compliance**
   Add inbound request verification compatible with Bot Framework/Teams production expectations.
   **AC:** unsigned/invalid requests are rejected; valid Teams activities process normally.
 

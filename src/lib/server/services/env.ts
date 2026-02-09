@@ -50,6 +50,10 @@ export function getTeamsClientId(): string | null {
   return readEnv('TEAMS_CLIENT_ID') ?? null;
 }
 
+export function getTeamsBotAppId(): string | null {
+  return readEnv('TEAMS_BOT_APP_ID') ?? null;
+}
+
 export function getTeamsClientSecret(): string | null {
   return readEnv('TEAMS_CLIENT_SECRET') ?? null;
 }
