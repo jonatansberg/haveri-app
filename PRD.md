@@ -114,7 +114,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Implement deterministic specificity precedence and fallback behavior when no policy matches.
   **AC:** specific policy overrides general; fallback path triggers when none match.
 
-- [ ] **Routing policy CRUD**
+- [x] **Routing policy CRUD**
   Build dashboard/API CRUD for create/edit/delete/reorder with validation and duplicate-condition warning.
   **AC:** policy edits apply to new incidents only.
 
@@ -156,7 +156,7 @@ This document intentionally keeps the strongest parts of the current build and o
   **AC:** edited fields persist and timeline logs edit metadata.
   **Downstream (P2/P3):** edit history should be retained as high-quality feedback data for AI summarization improvements.
 
-- [ ] **Configuration surfaces**
+- [x] **Configuration surfaces**
   Build P1 admin views for organization settings, facility/area/asset CRUD, team management, and routing editor.
   **AC:** full CRUD cycle works from dashboard for each config domain.
 

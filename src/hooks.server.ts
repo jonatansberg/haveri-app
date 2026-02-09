@@ -47,7 +47,17 @@ function logRequest(level: 'info' | 'warn' | 'error', message: string, details: 
   logger(message, details);
 }
 
-const reservedTopLevelSegments = new Set(['api', 'login', 'register', 'incidents', 'followups']);
+const reservedTopLevelSegments = new Set([
+  'api',
+  'login',
+  'register',
+  'incidents',
+  'followups',
+  'settings',
+  'about',
+  'contact',
+  'blog'
+]);
 
 function parseSlugFromPath(pathname: string): { slug: string; rewrittenPathname: string } | null {
   const parts = pathname.split('/').filter((part) => part.length > 0);

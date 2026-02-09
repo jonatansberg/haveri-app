@@ -31,6 +31,7 @@
         <nav class="flex items-center gap-2">
           <Button href="/" variant="ghost">Dashboard</Button>
           <Button href="/followups" variant="ghost">Follow-ups</Button>
+          <Button href="/settings" variant="ghost">Settings</Button>
           <Button variant="outline" onclick={signOut}>Sign out</Button>
         </nav>
       </div>
