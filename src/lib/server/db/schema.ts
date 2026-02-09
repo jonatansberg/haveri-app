@@ -318,6 +318,31 @@ export const incidentAssets = pgTable(
   (table) => [primaryKey({ columns: [table.incidentId, table.assetId] })]
 );
 
+export const incidentAttachments = pgTable(
+  'incident_attachments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    incidentId: uuid('incident_id')
+      .notNull()
+      .references(() => incidents.id, { onDelete: 'cascade' }),
+    sourcePlatform: text('source_platform').notNull(),
+    sourceEventId: text('source_event_id'),
+    sourceContentUrl: text('source_content_url'),
+    storagePath: text('storage_path').notNull(),
+    fileName: text('file_name').notNull(),
+    contentType: text('content_type'),
+    byteSize: integer('byte_size'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
+  },
+  (table) => [
+    index('idx_incident_attachments_org_incident').on(table.organizationId, table.incidentId),
+    unique().on(table.organizationId, table.storagePath)
+  ]
+);
+
 export const incidentEvents = pgTable(
   'incident_events',
   {

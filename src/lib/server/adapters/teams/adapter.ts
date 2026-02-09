@@ -4,6 +4,7 @@ import { facilities } from '$lib/server/db/schema';
 import { parseTeamsCommand } from './command-parser';
 import { acknowledgeIncidentEscalation } from '$lib/server/services/escalation-service';
 import { findIncidentByChannel } from '$lib/server/services/incident-queries';
+import { persistIncidentAttachments } from '$lib/server/services/incident-attachment-service';
 import { incidentService } from '$lib/server/services/incident-service';
 import {
   declareIncidentWithWorkflow,
@@ -301,6 +302,43 @@ export async function handleTeamsInbound(
     };
   }
 
+  let normalizedAttachments: Record<string, unknown>[] = (payload.attachments ?? []).map(
+    (attachment) => ({
+      name: attachment.name,
+      contentType: attachment.contentType,
+      contentUrl: attachment.contentUrl
+    })
+  );
+  if ((payload.attachments ?? []).length > 0) {
+    try {
+      const stored = await persistIncidentAttachments({
+        organizationId,
+        incidentId: activeIncident.id,
+        sourcePlatform: 'teams',
+        sourceEventId: payload.id,
+        attachments: payload.attachments ?? []
+      });
+
+      if (stored.length > 0) {
+        normalizedAttachments = stored.map((attachment) => ({
+          attachmentId: attachment.attachmentId,
+          name: attachment.name,
+          contentType: attachment.contentType,
+          contentUrl: attachment.contentUrl,
+          sourceContentUrl: attachment.sourceContentUrl,
+          byteSize: attachment.byteSize
+        }));
+      }
+    } catch (error) {
+      console.warn('Failed to persist Teams attachments', {
+        organizationId,
+        incidentId: activeIncident.id,
+        sourceEventId: payload.id,
+        error
+      });
+    }
+  }
+
   await incidentService.addEvent({
     event: {
       organizationId,
@@ -317,7 +355,7 @@ export async function handleTeamsInbound(
         text: payload.text,
         userName: payload.userName ?? null,
         timestamp: payload.timestamp ?? null,
-        attachments: payload.attachments ?? []
+        attachments: normalizedAttachments
       },
       rawSourcePayload: toRawPayload(payload)
     }

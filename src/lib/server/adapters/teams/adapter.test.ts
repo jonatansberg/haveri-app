@@ -7,6 +7,7 @@ const mockDeclareIncidentWithWorkflow = vi.hoisted(() => vi.fn());
 const mockSyncGlobalIncidentAnnouncement = vi.hoisted(() => vi.fn());
 const mockResolveMemberByNameHint = vi.hoisted(() => vi.fn());
 const mockResolveOrProvisionMemberByPlatformIdentity = vi.hoisted(() => vi.fn());
+const mockPersistIncidentAttachments = vi.hoisted(() => vi.fn());
 const mockIncidentService = vi.hoisted(() => ({
   resolveIncident: vi.fn(),
   updateStatus: vi.fn(),
@@ -37,6 +38,10 @@ vi.mock('$lib/server/services/member-identity-service', () => ({
   resolveOrProvisionMemberByPlatformIdentity: mockResolveOrProvisionMemberByPlatformIdentity
 }));
 
+vi.mock('$lib/server/services/incident-attachment-service', () => ({
+  persistIncidentAttachments: mockPersistIncidentAttachments
+}));
+
 vi.mock('$lib/server/services/incident-service', () => ({
   incidentService: mockIncidentService
 }));
@@ -62,6 +67,7 @@ function selectChain(rows: unknown[]) {
 describe('teams adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPersistIncidentAttachments.mockResolvedValue([]);
   });
 
   it('handles /incident command and maps workflow roles', async () => {
@@ -319,6 +325,17 @@ describe('teams adapter', () => {
   it('captures non-command messages for linked incident channels', async () => {
     mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue(null);
     mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-99', title: 'Existing incident' });
+    mockPersistIncidentAttachments.mockResolvedValue([
+      {
+        attachmentId: 'att-1',
+        name: 'photo.jpg',
+        contentType: 'image/jpeg',
+        contentUrl: '/api/incidents/inc-99/attachments/att-1',
+        storagePath: 'org-1/incidents/inc-99/photo.jpg',
+        byteSize: 128,
+        sourceContentUrl: 'https://files.example/photo.jpg'
+      }
+    ]);
 
     const result = await handleTeamsInbound('org-1', {
       id: 'msg-3',
@@ -357,12 +374,27 @@ describe('teams adapter', () => {
     expect(addEventCall.event.actorMemberId).toBeNull();
     expect(addEventCall.event.sourcePlatform).toBe('teams');
     expect(addEventCall.event.sourceEventId).toBe('msg-3');
-    expect(addEventCall.event.payload).toMatchObject({
+    expect(mockPersistIncidentAttachments).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-99',
+      sourcePlatform: 'teams',
+      sourceEventId: 'msg-3',
       attachments: [
         {
           name: 'photo.jpg',
           contentType: 'image/jpeg',
           contentUrl: 'https://files.example/photo.jpg'
+        }
+      ]
+    });
+    expect(addEventCall.event.payload).toMatchObject({
+      attachments: [
+        {
+          attachmentId: 'att-1',
+          name: 'photo.jpg',
+          contentType: 'image/jpeg',
+          contentUrl: '/api/incidents/inc-99/attachments/att-1',
+          sourceContentUrl: 'https://files.example/photo.jpg'
         }
       ]
     });

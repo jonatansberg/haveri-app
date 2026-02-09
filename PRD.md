@@ -44,7 +44,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Add/validate indexes for incident list/filter workloads (`incidents.organization_id`, `incidents.facility_id`, and status path via projection).
   **AC:** explain plans show index use for default incident list and common filters.
 
-- [ ] **Blob storage for attachments**
+- [x] **Blob storage for attachments**
   Implement org-scoped object storage paths for incident files and enforce cross-org access denial.
   **AC:** file attached in Teams appears in incident detail and is inaccessible from other orgs.
   **Downstream (P2/P3):** same storage layout should reserve namespaces for SOP docs and exported reports.

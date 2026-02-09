@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 type EnvironmentMap = Record<string, string | undefined>;
 
 let svelteEnv: EnvironmentMap | null = null;
@@ -68,4 +70,8 @@ export function getTeamsDelegatedAccessToken(): string | null {
 
 export function getTeamsWebhookSecret(): string | null {
   return readEnv('TEAMS_WEBHOOK_SECRET') ?? null;
+}
+
+export function getBlobStorageRoot(): string {
+  return readEnv('BLOB_STORAGE_ROOT') ?? path.join(process.cwd(), '.blob-storage');
 }
