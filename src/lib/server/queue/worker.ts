@@ -1,10 +1,16 @@
 import { Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db, withTransaction } from '$lib/server/db/client';
-import { escalationPolicySteps, incidentEscalationRuntime } from '$lib/server/db/schema';
+import {
+  escalationPolicySteps,
+  facilities,
+  incidentEscalationRuntime,
+  teams
+} from '$lib/server/db/schema';
 import { appendIncidentEvent } from '$lib/server/services/event-store';
 import { getRedisUrl } from '$lib/server/services/env';
+import { partitionTeamsByActivity } from '$lib/server/services/team-schedule-service';
 import type { EscalationJobData } from './types';
 
 const connection = new IORedis(getRedisUrl(), {
@@ -37,6 +43,7 @@ async function processEscalationJob(job: Job<EscalationJobData>): Promise<void> 
     .select({
       stepOrder: escalationPolicySteps.stepOrder,
       notifyType: escalationPolicySteps.notifyType,
+      notifyTargetIds: escalationPolicySteps.notifyTargetIds,
       ifUnacked: escalationPolicySteps.ifUnacked,
       delayMinutes: escalationPolicySteps.delayMinutes
     })
@@ -59,6 +66,30 @@ async function processEscalationJob(job: Job<EscalationJobData>): Promise<void> 
     return;
   }
 
+  let activeTargetIds = step.notifyTargetIds;
+  let inactiveTargetIds: string[] = [];
+
+  if (step.notifyType === 'team' && step.notifyTargetIds.length > 0) {
+    const teamRows = await db
+      .select({
+        teamId: teams.id,
+        shiftInfo: teams.shiftInfo,
+        timezone: facilities.timezone
+      })
+      .from(teams)
+      .leftJoin(facilities, eq(facilities.id, teams.facilityId))
+      .where(
+        and(
+          eq(teams.organizationId, job.data.organizationId),
+          inArray(teams.id, step.notifyTargetIds)
+        )
+      );
+
+    const partition = partitionTeamsByActivity(teamRows);
+    activeTargetIds = partition.activeTeamIds;
+    inactiveTargetIds = partition.inactiveTeamIds;
+  }
+
   await withTransaction(async (tx) => {
     await appendIncidentEvent(tx, {
       organizationId: job.data.organizationId,
@@ -71,7 +102,10 @@ async function processEscalationJob(job: Job<EscalationJobData>): Promise<void> 
         action: 'step_executed',
         stepOrder: step.stepOrder,
         notifyType: step.notifyType,
-        delayMinutes: step.delayMinutes
+        delayMinutes: step.delayMinutes,
+        notifyTargetIds: step.notifyTargetIds,
+        activeTargetIds,
+        inactiveTargetIds
       }
     });
 

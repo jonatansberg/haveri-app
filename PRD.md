@@ -31,7 +31,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Block area deletion when incidents reference that area (current behavior nulls/deletes instead of blocking).
   **AC:** deletion returns clear conflict error when linked incidents exist.
 
-- [ ] **Team/member relationship parity**
+- [x] **Team/member relationship parity**
   Replace single `members.team_id` model with many-to-many membership.
   Keep shift schedule optional, and enforce runtime “always active when no schedule” behavior in routing.
   **AC:** one member can belong to multiple teams; routing uses active team windows.

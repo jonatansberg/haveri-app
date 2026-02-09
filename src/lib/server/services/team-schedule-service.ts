@@ -86,3 +86,22 @@ export function isTeamActiveAt(shiftInfo: TeamShiftInfo, timezone: string, at: D
   const currentMinutes = toMinutesInTimezone(at, timezone);
   return windows.some((window) => matchesWindow(window, currentMinutes));
 }
+
+export function partitionTeamsByActivity(
+  teams: { teamId: string; shiftInfo: TeamShiftInfo; timezone: string | null }[],
+  at: Date = new Date()
+): { activeTeamIds: string[]; inactiveTeamIds: string[] } {
+  const activeTeamIds: string[] = [];
+  const inactiveTeamIds: string[] = [];
+
+  for (const team of teams) {
+    const timezone = team.timezone ?? 'UTC';
+    if (isTeamActiveAt(team.shiftInfo, timezone, at)) {
+      activeTeamIds.push(team.teamId);
+    } else {
+      inactiveTeamIds.push(team.teamId);
+    }
+  }
+
+  return { activeTeamIds, inactiveTeamIds };
+}
