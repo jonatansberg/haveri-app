@@ -59,7 +59,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Add inbound request verification compatible with Bot Framework/Teams production expectations.
   **AC:** unsigned/invalid requests are rejected; valid Teams activities process normally.
 
-- [ ] **Command parity with PRD**
+- [x] **Command parity with PRD**
   Add support for configurable declaration command (`/haveri` or `/incident`) and missing lifecycle commands (`/investigating`, `/mitigated`, `/severity`, `/lead`).
   **AC:** command set works from Teams and maps to event log consistently.
 
