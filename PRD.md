@@ -173,7 +173,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Instrument and document declaration, triage-submit, and message-capture timings.
   **AC:** baseline report captured under normal load.
 
-- [ ] **Security hardening**
+- [x] **Security hardening**
   Enforce tenant isolation with membership checks, not `x-org-id` alone.
   Add Teams webhook verification path.
   **AC:** cross-tenant access attempts fail regardless of header manipulation; invalid webhook signatures rejected.

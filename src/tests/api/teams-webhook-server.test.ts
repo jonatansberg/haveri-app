@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHmac } from 'node:crypto';
 
 const mockReadJson = vi.hoisted(() => vi.fn());
 const mockHandleTeamsInbound = vi.hoisted(() => vi.fn());
@@ -59,6 +60,32 @@ describe('POST /api/chat/teams/webhook', () => {
       error: 'Unauthorized webhook request'
     });
     expect(mockHandleTeamsInbound).not.toHaveBeenCalled();
+  });
+
+  it('accepts webhook requests signed with the shared secret', async () => {
+    const payload = {
+      id: 'evt-auth-signature',
+      type: 'message',
+      text: 'hello',
+      channelId: '19:channel@thread.tacv2',
+      userId: 'user-1'
+    };
+    mockGetTeamsWebhookSecret.mockReturnValue('shared-secret');
+    mockReadJson.mockResolvedValue(payload);
+
+    const signature = createHmac('sha256', 'shared-secret')
+      .update(JSON.stringify(payload))
+      .digest('hex');
+
+    const response = await POST({
+      request: new Request('http://localhost/api/chat/teams/webhook', {
+        method: 'POST',
+        headers: { 'x-haveri-webhook-signature': `sha256=${signature}` }
+      })
+    } as Parameters<typeof POST>[0]);
+
+    expect(response.status).toBe(200);
+    expect(mockHandleTeamsInbound).toHaveBeenCalledTimes(1);
   });
 
   it('accepts legacy webhook payload shape', async () => {

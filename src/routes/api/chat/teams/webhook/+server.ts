@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
 import { handleTeamsInbound } from '$lib/server/adapters/teams/adapter';
@@ -189,6 +190,25 @@ function logWebhookEvent(level: 'info' | 'warn' | 'error', message: string, deta
   logger(message, details);
 }
 
+function verifyWebhookSignature(input: {
+  signature: string;
+  payload: unknown;
+  secret: string;
+}): boolean {
+  const normalized = input.signature.startsWith('sha256=')
+    ? input.signature.slice('sha256='.length)
+    : input.signature;
+  const expected = createHmac('sha256', input.secret)
+    .update(JSON.stringify(input.payload))
+    .digest('hex');
+
+  if (normalized.length !== expected.length) {
+    return false;
+  }
+
+  return timingSafeEqual(Buffer.from(normalized), Buffer.from(expected));
+}
+
 function isLegacyTeamsWebhookPayload(
   payload: LegacyTeamsWebhookPayload | TeamsActivityWebhookPayload
 ): payload is LegacyTeamsWebhookPayload {
@@ -249,17 +269,30 @@ export const POST: RequestHandler = async (event) => {
   const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
   const context = getRequestLogContext(event, orgId);
   const configuredWebhookSecret = getTeamsWebhookSecret();
+  const providedWebhookSignature = event.request.headers.get('x-haveri-webhook-signature');
   const providedWebhookSecret = event.request.headers.get('x-haveri-webhook-secret');
-
-  if (configuredWebhookSecret && configuredWebhookSecret !== providedWebhookSecret) {
-    logWebhookEvent('warn', 'Teams webhook rejected due to invalid secret', {
-      ...context
-    });
-    return json({ error: 'Unauthorized webhook request' }, { status: 401 });
-  }
 
   try {
     const rawPayload = await readJson<unknown>(event.request);
+
+    if (configuredWebhookSecret) {
+      const hasValidSignature = providedWebhookSignature
+        ? verifyWebhookSignature({
+            signature: providedWebhookSignature,
+            payload: rawPayload,
+            secret: configuredWebhookSecret
+          })
+        : false;
+      const hasValidSharedSecret = configuredWebhookSecret === providedWebhookSecret;
+
+      if (!hasValidSignature && !hasValidSharedSecret) {
+        logWebhookEvent('warn', 'Teams webhook rejected due to invalid secret/signature', {
+          ...context
+        });
+        return json({ error: 'Unauthorized webhook request' }, { status: 401 });
+      }
+    }
+
     logWebhookEvent('info', 'Teams webhook request received', {
       ...context,
       payload: summarizePayload(rawPayload)
