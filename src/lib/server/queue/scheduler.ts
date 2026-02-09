@@ -12,7 +12,38 @@ export async function scheduleEscalationForIncident(input: {
   const policy = await selectEscalationPolicyForIncident(input);
 
   if (!policy) {
-    return { scheduled: false, reason: 'No matching policy' };
+    await withTransaction(async (tx) => {
+      await tx
+        .update(incidentEscalationRuntime)
+        .set({
+          policyId: null,
+          ackedAt: null,
+          ackedByMemberId: null,
+          latestStepOrder: 1,
+          updatedAt: new Date().toISOString()
+        })
+        .where(
+          and(
+            eq(incidentEscalationRuntime.organizationId, input.organizationId),
+            eq(incidentEscalationRuntime.incidentId, input.incidentId)
+          )
+        );
+
+      await appendIncidentEvent(tx, {
+        organizationId: input.organizationId,
+        incidentId: input.incidentId,
+        eventType: 'escalation',
+        eventVersion: 1,
+        schemaVersion: 1,
+        actorType: 'system',
+        payload: {
+          action: 'fallback_declaring_team',
+          reason: 'No matching policy'
+        }
+      });
+    });
+
+    return { scheduled: true, reason: 'Fallback to declaring team' };
   }
 
   await withTransaction(async (tx) => {

@@ -1,14 +1,91 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { withTransaction, db } from '$lib/server/db/client';
 import {
+  assets,
   escalationPolicies,
   escalationPolicySteps,
+  facilities,
   incidentEscalationRuntime,
+  incidentAssets,
   incidentCurrentState,
   incidents
 } from '$lib/server/db/schema';
 import { appendIncidentEvent } from './event-store';
 import { NotFoundError } from './errors';
+
+interface PolicyConditions {
+  severity?: string[] | string;
+  areaId?: string[] | string;
+  area?: string[] | string;
+  assetType?: string[] | string;
+  asset_type?: string[] | string;
+  timeWindow?: string[] | string;
+  time_window?: string[] | string;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  }
+
+  if (typeof value === 'string' && value.length > 0) {
+    return [value];
+  }
+
+  return [];
+}
+
+function parseTimeToMinutes(raw: string): number | null {
+  const [hourRaw, minuteRaw] = raw.split(':');
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) {
+    return null;
+  }
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+}
+
+function currentMinutesInTimezone(timezone: string): number {
+  const formatted = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: timezone
+  }).format(new Date());
+  return parseTimeToMinutes(formatted) ?? 0;
+}
+
+function matchesTimeWindows(windows: string[], timezone: string): boolean {
+  if (windows.length === 0) {
+    return true;
+  }
+
+  const nowMinutes = currentMinutesInTimezone(timezone);
+  return windows.some((window) => {
+    const [startRaw, endRaw] = window.split('-');
+    const start = parseTimeToMinutes(startRaw ?? '');
+    const end = parseTimeToMinutes(endRaw ?? '');
+    if (start === null || end === null) {
+      return false;
+    }
+    if (start === end) {
+      return true;
+    }
+    if (start < end) {
+      return nowMinutes >= start && nowMinutes < end;
+    }
+
+    return nowMinutes >= start || nowMinutes < end;
+  });
+}
+
+function hasAny(values: string[]): boolean {
+  return values.some((value) => value.toLowerCase() === 'any');
+}
 
 export async function acknowledgeIncidentEscalation(input: {
   organizationId: string;
@@ -68,7 +145,8 @@ export async function selectEscalationPolicyForIncident(input: {
     .select({
       facilityId: incidents.facilityId,
       areaId: incidents.areaId,
-      severity: incidentCurrentState.severity
+      severity: incidentCurrentState.severity,
+      timezone: facilities.timezone
     })
     .from(incidents)
     .innerJoin(
@@ -78,12 +156,30 @@ export async function selectEscalationPolicyForIncident(input: {
         eq(incidentCurrentState.organizationId, incidents.organizationId)
       )
     )
+    .innerJoin(facilities, eq(facilities.id, incidents.facilityId))
     .where(and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, input.incidentId)))
     .limit(1);
 
   if (!incident) {
     throw new NotFoundError(`Incident ${input.incidentId} not found`);
   }
+
+  const incidentAssetTypes = await db
+    .select({
+      assetType: assets.assetType
+    })
+    .from(incidentAssets)
+    .innerJoin(
+      assets,
+      and(eq(assets.id, incidentAssets.assetId), eq(assets.organizationId, incidentAssets.organizationId))
+    )
+    .where(
+      and(
+        eq(incidentAssets.organizationId, input.organizationId),
+        eq(incidentAssets.incidentId, input.incidentId)
+      )
+    )
+    .then((rows) => new Set(rows.map((row) => row.assetType)));
 
   const policies = await db
     .select({
@@ -95,26 +191,61 @@ export async function selectEscalationPolicyForIncident(input: {
       and(
         eq(escalationPolicies.organizationId, input.organizationId),
         eq(escalationPolicies.isActive, true),
-        eq(escalationPolicies.facilityId, incident.facilityId)
+        or(eq(escalationPolicies.facilityId, incident.facilityId), isNull(escalationPolicies.facilityId))
       )
     );
 
-  const matchingPolicy = policies.find((policy) => {
-    const conditions = policy.conditions as {
-      severity?: string[];
-      areaId?: string;
-    };
+  const matchingPolicies = policies
+    .map((policy) => {
+      const conditions = (policy.conditions ?? {}) as PolicyConditions;
+      const severityConditions = asStringArray(conditions.severity);
+      const areaConditions = asStringArray(conditions.areaId ?? conditions.area);
+      const assetConditions = asStringArray(conditions.assetType ?? conditions.asset_type);
+      const timeWindows = asStringArray(conditions.timeWindow ?? conditions.time_window);
 
-    if (conditions.severity && !conditions.severity.includes(incident.severity)) {
-      return false;
-    }
+      if (
+        severityConditions.length > 0 &&
+        !hasAny(severityConditions) &&
+        !severityConditions.includes(incident.severity)
+      ) {
+        return null;
+      }
 
-    if (conditions.areaId && conditions.areaId !== incident.areaId) {
-      return false;
-    }
+      if (
+        areaConditions.length > 0 &&
+        !hasAny(areaConditions) &&
+        (!incident.areaId || !areaConditions.includes(incident.areaId))
+      ) {
+        return null;
+      }
 
-    return true;
-  });
+      if (
+        assetConditions.length > 0 &&
+        !hasAny(assetConditions) &&
+        !assetConditions.some((assetType) => incidentAssetTypes.has(assetType))
+      ) {
+        return null;
+      }
+
+      if (!matchesTimeWindows(timeWindows, incident.timezone)) {
+        return null;
+      }
+
+      const specificity =
+        (severityConditions.length > 0 && !hasAny(severityConditions) ? 1 : 0) +
+        (areaConditions.length > 0 && !hasAny(areaConditions) ? 2 : 0) +
+        (assetConditions.length > 0 && !hasAny(assetConditions) ? 4 : 0) +
+        (timeWindows.length > 0 ? 1 : 0);
+
+      return {
+        id: policy.id,
+        specificity
+      };
+    })
+    .filter((value): value is { id: string; specificity: number } => value !== null)
+    .sort((a, b) => b.specificity - a.specificity);
+
+  const matchingPolicy = matchingPolicies[0];
 
   if (!matchingPolicy) {
     return null;

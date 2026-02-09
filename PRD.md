@@ -105,12 +105,12 @@ This document intentionally keeps the strongest parts of the current build and o
 
 ## 4) Routing & Notifications
 
-- [ ] **Policy matcher completeness**
+- [x] **Policy matcher completeness**
   Expand conditions to severity + area + asset_type + time_window (facility timezone aware).
   **AC:** policy matching honors all condition dimensions.
   **Downstream (P2/P3):** richer condition dimensions improve later analytics and guided-triage quality.
 
-- [ ] **Policy precedence + fallback**
+- [x] **Policy precedence + fallback**
   Implement deterministic specificity precedence and fallback behavior when no policy matches.
   **AC:** specific policy overrides general; fallback path triggers when none match.
 
