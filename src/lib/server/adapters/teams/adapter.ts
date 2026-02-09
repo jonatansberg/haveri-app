@@ -54,6 +54,26 @@ async function resolveDefaultFacilityId(organizationId: string): Promise<string>
   return facility.id;
 }
 
+async function resolveCommandIncidentId(input: {
+  organizationId: string;
+  platform: 'teams';
+  channelRef: string;
+  incidentId: string | null;
+}): Promise<string> {
+  if (input.incidentId) {
+    return input.incidentId;
+  }
+
+  const activeIncident = await findIncidentByChannel(input.organizationId, input.platform, input.channelRef);
+  if (!activeIncident) {
+    throw new ValidationError(
+      'No incident linked to this channel. Include an incident id in the command.'
+    );
+  }
+
+  return activeIncident.id;
+}
+
 export async function handleTeamsInbound(
   organizationId: string,
   payload: TeamsInboundMessage
@@ -100,9 +120,16 @@ export async function handleTeamsInbound(
   }
 
   if (command?.type === 'resolve') {
+    const incidentId = await resolveCommandIncidentId({
+      organizationId,
+      platform: 'teams',
+      channelRef: payload.channelId,
+      incidentId: command.incidentId
+    });
+
     await incidentService.resolveIncident({
       organizationId,
-      incidentId: command.incidentId,
+      incidentId,
       actorMemberId: memberId,
       summary: {
         whatHappened: command.summaryText,
@@ -113,52 +140,128 @@ export async function handleTeamsInbound(
     });
     await syncGlobalIncidentAnnouncement({
       organizationId,
-      incidentId: command.incidentId
+      incidentId
     });
 
     return {
       ok: true,
       action: 'incident_resolved',
-      incidentId: command.incidentId
+      incidentId
     };
   }
 
   if (command?.type === 'status') {
+    const incidentId = await resolveCommandIncidentId({
+      organizationId,
+      platform: 'teams',
+      channelRef: payload.channelId,
+      incidentId: command.incidentId
+    });
+
     await incidentService.updateStatus({
       organizationId,
-      incidentId: command.incidentId,
+      incidentId,
       newStatus: command.status,
       actorMemberId: memberId,
       actorExternalId: payload.userId
     });
     await syncGlobalIncidentAnnouncement({
       organizationId,
-      incidentId: command.incidentId
+      incidentId
     });
 
     return {
       ok: true,
       action: 'incident_status_updated',
-      incidentId: command.incidentId,
+      incidentId,
       status: command.status
     };
   }
 
   if (command?.type === 'ack') {
+    const incidentId = await resolveCommandIncidentId({
+      organizationId,
+      platform: 'teams',
+      channelRef: payload.channelId,
+      incidentId: command.incidentId
+    });
+
     await acknowledgeIncidentEscalation({
       organizationId,
-      incidentId: command.incidentId,
+      incidentId,
       actorMemberId: memberId
     });
     await syncGlobalIncidentAnnouncement({
       organizationId,
-      incidentId: command.incidentId
+      incidentId
     });
 
     return {
       ok: true,
       action: 'incident_acknowledged',
+      incidentId
+    };
+  }
+
+  if (command?.type === 'severity') {
+    const incidentId = await resolveCommandIncidentId({
+      organizationId,
+      platform: 'teams',
+      channelRef: payload.channelId,
       incidentId: command.incidentId
+    });
+
+    await incidentService.changeSeverity({
+      organizationId,
+      incidentId,
+      severity: command.severity,
+      actorMemberId: memberId
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId,
+      incidentId
+    });
+
+    return {
+      ok: true,
+      action: 'incident_severity_updated',
+      incidentId,
+      severity: command.severity
+    };
+  }
+
+  if (command?.type === 'lead') {
+    const incidentId = await resolveCommandIncidentId({
+      organizationId,
+      platform: 'teams',
+      channelRef: payload.channelId,
+      incidentId: command.incidentId
+    });
+    const member = await resolveMemberByNameHint({
+      organizationId,
+      nameHint: command.memberRef
+    });
+
+    if (!member) {
+      throw new ValidationError(`Unable to resolve member "${command.memberRef}"`);
+    }
+
+    await incidentService.assignLead({
+      organizationId,
+      incidentId,
+      memberId: member.memberId,
+      actorMemberId: memberId
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId,
+      incidentId
+    });
+
+    return {
+      ok: true,
+      action: 'incident_lead_updated',
+      incidentId,
+      leadMemberId: member.memberId
     };
   }
 
@@ -166,7 +269,7 @@ export async function handleTeamsInbound(
     return {
       ok: false,
       action: 'unknown_command',
-      help: 'Supported commands: /incident <SEV1|SEV2|SEV3> <title> [@resp:Name] [@comms:Name], /status <id> <STATUS>, /resolve <id> <summary>, /ack <id>'
+      help: 'Supported commands: /incident|/haveri [SEV1|SEV2|SEV3] <title> [@resp:Name] [@comms:Name], /status [id] <STATUS>, /investigating [id], /mitigated [id], /severity [id] <1|2|3|SEV1|SEV2|SEV3>, /lead [id] @Name, /resolve [id] <summary>, /ack [id>'
     };
   }
 

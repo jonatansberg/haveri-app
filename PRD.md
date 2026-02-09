@@ -99,7 +99,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Add org-configurable channel archive behavior when incident closes.
   **AC:** close archives channel when enabled; leaves channel open when disabled.
 
-- [ ] **Lead reassignment in Teams**
+- [x] **Lead reassignment in Teams**
   Add `/lead @person` parity with web reassignment.
   **AC:** command updates lead and appends `assignment` event.
 

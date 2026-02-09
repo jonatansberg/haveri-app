@@ -22,6 +22,15 @@ describe('parseTeamsCommand', () => {
     });
   });
 
+  it('parses /haveri declare command with default severity', () => {
+    const command = parseTeamsCommand('/haveri Line 2 pressure drop');
+    expect(command).toEqual({
+      type: 'declare',
+      severity: 'SEV2',
+      title: 'Line 2 pressure drop'
+    });
+  });
+
   it('parses status command', () => {
     const command = parseTeamsCommand('/status 123 RESOLVED');
     expect(command).toEqual({
@@ -31,13 +40,49 @@ describe('parseTeamsCommand', () => {
     });
   });
 
+  it('parses shorthand investigating command', () => {
+    const command = parseTeamsCommand('/investigating');
+    expect(command).toEqual({
+      type: 'status',
+      incidentId: null,
+      status: 'INVESTIGATING'
+    });
+  });
+
+  it('parses shorthand mitigated command with incident id', () => {
+    const command = parseTeamsCommand('/mitigated 123');
+    expect(command).toEqual({
+      type: 'status',
+      incidentId: '123',
+      status: 'MITIGATED'
+    });
+  });
+
+  it('parses severity command with numeric shorthand', () => {
+    const command = parseTeamsCommand('/severity 1');
+    expect(command).toEqual({
+      type: 'severity',
+      incidentId: null,
+      severity: 'SEV1'
+    });
+  });
+
+  it('parses lead command', () => {
+    const command = parseTeamsCommand('/lead @Alex Rivera');
+    expect(command).toEqual({
+      type: 'lead',
+      incidentId: null,
+      memberRef: 'Alex Rivera'
+    });
+  });
+
   it('returns null for non-command messages', () => {
     const command = parseTeamsCommand('hello team');
     expect(command).toBeNull();
   });
 
   it('returns unknown for malformed command', () => {
-    const command = parseTeamsCommand('/incident bad');
-    expect(command).toEqual({ type: 'unknown', raw: '/incident bad' });
+    const command = parseTeamsCommand('/incident');
+    expect(command).toEqual({ type: 'unknown', raw: '/incident' });
   });
 });

@@ -10,6 +10,8 @@ const mockResolveMemberByPlatformIdentity = vi.hoisted(() => vi.fn());
 const mockIncidentService = vi.hoisted(() => ({
   resolveIncident: vi.fn(),
   updateStatus: vi.fn(),
+  changeSeverity: vi.fn(),
+  assignLead: vi.fn(),
   addEvent: vi.fn()
 }));
 
@@ -130,6 +132,90 @@ describe('teams adapter', () => {
       action: 'incident_status_updated',
       incidentId: 'inc-1',
       status: 'MITIGATED'
+    });
+  });
+
+  it('handles /mitigated without explicit incident id by resolving channel incident', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-1', title: 'Incident 1' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-2m',
+      type: 'message',
+      text: '/mitigated',
+      channelId: 'teams:incident:1',
+      userId: 'teams-user-1'
+    });
+
+    expect(mockIncidentService.updateStatus).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1',
+      newStatus: 'MITIGATED',
+      actorMemberId: 'member-actor',
+      actorExternalId: 'teams-user-1'
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_status_updated',
+      incidentId: 'inc-1',
+      status: 'MITIGATED'
+    });
+  });
+
+  it('handles /severity command and syncs global announcement', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-11', title: 'Incident 11' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-sev',
+      type: 'message',
+      text: '/severity 1',
+      channelId: 'teams:incident:11',
+      userId: 'teams-user-1'
+    });
+
+    expect(mockIncidentService.changeSeverity).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-11',
+      severity: 'SEV1',
+      actorMemberId: 'member-actor'
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_severity_updated',
+      incidentId: 'inc-11',
+      severity: 'SEV1'
+    });
+  });
+
+  it('handles /lead command and syncs global announcement', async () => {
+    mockResolveMemberByPlatformIdentity.mockResolvedValue({ memberId: 'member-actor', name: 'Actor' });
+    mockFindIncidentByChannel.mockResolvedValue({ id: 'inc-12', title: 'Incident 12' });
+    mockResolveMemberByNameHint.mockResolvedValue({ memberId: 'member-target', name: 'Alex' });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-lead',
+      type: 'message',
+      text: '/lead @Alex',
+      channelId: 'teams:incident:12',
+      userId: 'teams-user-1'
+    });
+
+    expect(mockResolveMemberByNameHint).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      nameHint: 'Alex'
+    });
+    expect(mockIncidentService.assignLead).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-12',
+      memberId: 'member-target',
+      actorMemberId: 'member-actor'
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_lead_updated',
+      incidentId: 'inc-12',
+      leadMemberId: 'member-target'
     });
   });
 
@@ -258,7 +344,7 @@ describe('teams adapter', () => {
     const result = await handleTeamsInbound('org-1', {
       id: 'msg-4',
       type: 'message',
-      text: '/incident bad',
+      text: '/nonsense',
       channelId: 'teams:incident:77',
       userId: 'teams-user-1'
     });
@@ -267,7 +353,7 @@ describe('teams adapter', () => {
       ok: false,
       action: 'unknown_command',
       help:
-        'Supported commands: /incident <SEV1|SEV2|SEV3> <title> [@resp:Name] [@comms:Name], /status <id> <STATUS>, /resolve <id> <summary>, /ack <id>'
+        'Supported commands: /incident|/haveri [SEV1|SEV2|SEV3] <title> [@resp:Name] [@comms:Name], /status [id] <STATUS>, /investigating [id], /mitigated [id], /severity [id] <1|2|3|SEV1|SEV2|SEV3>, /lead [id] @Name, /resolve [id] <summary>, /ack [id>'
     });
   });
 });
