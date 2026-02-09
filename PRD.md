@@ -26,7 +26,7 @@ This document intentionally keeps the strongest parts of the current build and o
   **AC:** slug uniqueness enforced in DB; dashboard URLs support `/{slug}/...`; user from org A cannot access org B by changing headers.
   **Downstream (P2/P3):** stable slug/url identity is needed for docs links, analytics segmentation, and cross-system references.
 
-- [ ] **Area model parity**
+- [x] **Area model parity**
   Add `areas.description`.  
   Block area deletion when incidents reference that area (current behavior nulls/deletes instead of blocking).
   **AC:** deletion returns clear conflict error when linked incidents exist.

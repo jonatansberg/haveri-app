@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS areas (
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   facility_id UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  description TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (organization_id, facility_id, name)
 );
@@ -91,7 +92,7 @@ CREATE TABLE IF NOT EXISTS incidents (
   declared_by_member_id UUID REFERENCES members(id) ON DELETE SET NULL,
   declared_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   facility_id UUID NOT NULL REFERENCES facilities(id) ON DELETE RESTRICT,
-  area_id UUID REFERENCES areas(id) ON DELETE SET NULL,
+  area_id UUID REFERENCES areas(id) ON DELETE RESTRICT,
   assigned_to_member_id UUID REFERENCES members(id) ON DELETE SET NULL,
   chat_platform TEXT NOT NULL,
   chat_channel_ref TEXT NOT NULL,

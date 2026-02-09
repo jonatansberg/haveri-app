@@ -220,6 +220,7 @@ export const areas = pgTable(
       .notNull()
       .references(() => facilities.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    description: text('description'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
   },
   (table) => [unique().on(table.organizationId, table.facilityId, table.name)]
@@ -258,7 +259,7 @@ export const incidents = pgTable(
     facilityId: uuid('facility_id')
       .notNull()
       .references(() => facilities.id, { onDelete: 'restrict' }),
-    areaId: uuid('area_id').references(() => areas.id, { onDelete: 'set null' }),
+    areaId: uuid('area_id').references(() => areas.id, { onDelete: 'restrict' }),
     assignedToMemberId: uuid('assigned_to_member_id').references(() => members.id, {
       onDelete: 'set null'
     }),
