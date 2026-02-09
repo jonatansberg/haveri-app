@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
 import { handleTeamsInbound } from '$lib/server/adapters/teams/adapter';
 import type { TeamsInboundMessage } from '$lib/server/adapters/teams/adapter';
-import { getDefaultOrgId } from '$lib/server/services/env';
+import { getDefaultOrgId, getTeamsWebhookSecret } from '$lib/server/services/env';
 import { ValidationError } from '$lib/server/services/errors';
 import {
   getIdempotentResponse,
@@ -238,6 +238,15 @@ function toTeamsInbound(
 export const POST: RequestHandler = async (event) => {
   const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
   const context = getRequestLogContext(event, orgId);
+  const configuredWebhookSecret = getTeamsWebhookSecret();
+  const providedWebhookSecret = event.request.headers.get('x-haveri-webhook-secret');
+
+  if (configuredWebhookSecret && configuredWebhookSecret !== providedWebhookSecret) {
+    logWebhookEvent('warn', 'Teams webhook rejected due to invalid secret', {
+      ...context
+    });
+    return json({ error: 'Unauthorized webhook request' }, { status: 401 });
+  }
 
   try {
     const rawPayload = await readJson<unknown>(event.request);

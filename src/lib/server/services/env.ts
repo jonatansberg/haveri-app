@@ -61,3 +61,7 @@ export function getTeamsGraphBaseUrlRoot(): string {
 export function getTeamsDelegatedAccessToken(): string | null {
   return readEnv('TEAMS_DELEGATED_ACCESS_TOKEN') ?? null;
 }
+
+export function getTeamsWebhookSecret(): string | null {
+  return readEnv('TEAMS_WEBHOOK_SECRET') ?? null;
+}

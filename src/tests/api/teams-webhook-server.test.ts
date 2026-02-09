@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockReadJson = vi.hoisted(() => vi.fn());
 const mockHandleTeamsInbound = vi.hoisted(() => vi.fn());
 const mockGetDefaultOrgId = vi.hoisted(() => vi.fn());
+const mockGetTeamsWebhookSecret = vi.hoisted(() => vi.fn());
 const mockGetIdempotentResponse = vi.hoisted(() => vi.fn());
 const mockStoreIdempotentResponse = vi.hoisted(() => vi.fn());
 
@@ -19,7 +20,8 @@ vi.mock('$lib/server/adapters/teams/adapter', () => ({
 }));
 
 vi.mock('$lib/server/services/env', () => ({
-  getDefaultOrgId: mockGetDefaultOrgId
+  getDefaultOrgId: mockGetDefaultOrgId,
+  getTeamsWebhookSecret: mockGetTeamsWebhookSecret
 }));
 
 vi.mock('$lib/server/services/idempotency-service', () => ({
@@ -33,8 +35,30 @@ describe('POST /api/chat/teams/webhook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDefaultOrgId.mockReturnValue('org-default');
+    mockGetTeamsWebhookSecret.mockReturnValue(null);
     mockGetIdempotentResponse.mockResolvedValue(null);
     mockHandleTeamsInbound.mockResolvedValue({ ok: true, action: 'handled' });
+  });
+
+  it('returns 401 when webhook secret is configured and header is missing', async () => {
+    mockGetTeamsWebhookSecret.mockReturnValue('shared-secret');
+    mockReadJson.mockResolvedValue({
+      id: 'evt-auth',
+      type: 'message',
+      text: 'hello',
+      channelId: '19:channel@thread.tacv2',
+      userId: 'user-1'
+    });
+
+    const response = await POST({
+      request: new Request('http://localhost/api/chat/teams/webhook', { method: 'POST' })
+    } as Parameters<typeof POST>[0]);
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Unauthorized webhook request'
+    });
+    expect(mockHandleTeamsInbound).not.toHaveBeenCalled();
   });
 
   it('accepts legacy webhook payload shape', async () => {
