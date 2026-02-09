@@ -361,6 +361,22 @@ export async function handleTeamsInbound(
     }
   });
 
+  if (memberId) {
+    try {
+      await acknowledgeIncidentEscalation({
+        organizationId,
+        incidentId: activeIncident.id,
+        actorMemberId: memberId
+      });
+      await syncGlobalIncidentAnnouncement({
+        organizationId,
+        incidentId: activeIncident.id
+      });
+    } catch {
+      // Ignore acknowledgement errors for regular incident chat messages.
+    }
+  }
+
   return {
     ok: true,
     action: 'message_captured',

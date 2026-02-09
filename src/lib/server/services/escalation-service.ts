@@ -6,12 +6,13 @@ import {
   escalationPolicySteps,
   facilities,
   incidentEscalationRuntime,
+  incidentEscalationStepTargets,
   incidentAssets,
   incidentCurrentState,
   incidents
 } from '$lib/server/db/schema';
 import { appendIncidentEvent } from './event-store';
-import { NotFoundError } from './errors';
+import { NotFoundError, ValidationError } from './errors';
 
 interface PolicyConditions {
   severity?: string[] | string;
@@ -94,7 +95,10 @@ export async function acknowledgeIncidentEscalation(input: {
 }): Promise<void> {
   await withTransaction(async (tx) => {
     const [runtime] = await tx
-      .select({ incidentId: incidentEscalationRuntime.incidentId })
+      .select({
+        incidentId: incidentEscalationRuntime.incidentId,
+        latestStepOrder: incidentEscalationRuntime.latestStepOrder
+      })
       .from(incidentEscalationRuntime)
       .where(
         and(
@@ -106,6 +110,46 @@ export async function acknowledgeIncidentEscalation(input: {
 
     if (!runtime) {
       throw new NotFoundError(`Escalation runtime missing for incident ${input.incidentId}`);
+    }
+
+    let canAcknowledgeStep = true;
+    const stepOrder = runtime.latestStepOrder;
+    if (stepOrder > 0 && input.actorMemberId) {
+      const updatedTargets = await tx
+        .update(incidentEscalationStepTargets)
+        .set({
+          acknowledgedAt: new Date().toISOString()
+        })
+        .where(
+          and(
+            eq(incidentEscalationStepTargets.organizationId, input.organizationId),
+            eq(incidentEscalationStepTargets.incidentId, input.incidentId),
+            eq(incidentEscalationStepTargets.stepOrder, stepOrder),
+            eq(incidentEscalationStepTargets.targetMemberId, input.actorMemberId)
+          )
+        )
+        .returning({ memberId: incidentEscalationStepTargets.targetMemberId });
+
+      const hasStepTargets = await tx
+        .select({ memberId: incidentEscalationStepTargets.targetMemberId })
+        .from(incidentEscalationStepTargets)
+        .where(
+          and(
+            eq(incidentEscalationStepTargets.organizationId, input.organizationId),
+            eq(incidentEscalationStepTargets.incidentId, input.incidentId),
+            eq(incidentEscalationStepTargets.stepOrder, stepOrder)
+          )
+        )
+        .limit(1)
+        .then((rows) => rows.length > 0);
+
+      if (hasStepTargets && updatedTargets.length === 0) {
+        canAcknowledgeStep = false;
+      }
+    }
+
+    if (!canAcknowledgeStep) {
+      throw new ValidationError('Only notified members can acknowledge this escalation step');
     }
 
     await tx
@@ -131,7 +175,9 @@ export async function acknowledgeIncidentEscalation(input: {
       actorType: input.actorMemberId ? 'member' : 'system',
       actorMemberId: input.actorMemberId ?? null,
       payload: {
-        action: 'acknowledged'
+        action: 'acknowledged',
+        stepOrder: runtime.latestStepOrder,
+        acknowledgedByMemberId: input.actorMemberId ?? null
       }
     });
   });
@@ -249,7 +295,15 @@ export async function selectEscalationPolicyForIncident(input: {
       if (b.specificity !== a.specificity) {
         return b.specificity - a.specificity;
       }
-      return a.priority - b.priority;
+      const aPriority =
+        typeof a.priority === 'number' && Number.isFinite(a.priority)
+          ? a.priority
+          : Number.MAX_SAFE_INTEGER;
+      const bPriority =
+        typeof b.priority === 'number' && Number.isFinite(b.priority)
+          ? b.priority
+          : Number.MAX_SAFE_INTEGER;
+      return aPriority - bPriority;
     });
 
   const matchingPolicy = matchingPolicies[0];

@@ -5,6 +5,7 @@ import {
   facilities,
   followUps,
   incidentCurrentState,
+  incidentEscalationStepTargets,
   incidentEvents,
   incidents,
   incidentSummaries,
@@ -137,6 +138,14 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
     dueDate: string | null;
     assignedToMemberId: string | null;
   }[];
+  escalationTargets: {
+    stepOrder: number;
+    targetMemberId: string;
+    targetMemberName: string | null;
+    notifyType: string;
+    notifiedAt: string;
+    acknowledgedAt: string | null;
+  }[];
 }> {
   const responsibleMember = aliasedTable(members, 'responsible_member');
   const commsMember = aliasedTable(members, 'comms_member');
@@ -224,6 +233,32 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
     .where(and(eq(followUps.organizationId, organizationId), eq(followUps.incidentId, incidentId)))
     .orderBy(asc(followUps.createdAt));
 
+  const escalationTargetMember = aliasedTable(members, 'escalation_target_member');
+  const escalationTargets = await db
+    .select({
+      stepOrder: incidentEscalationStepTargets.stepOrder,
+      targetMemberId: incidentEscalationStepTargets.targetMemberId,
+      targetMemberName: escalationTargetMember.name,
+      notifyType: incidentEscalationStepTargets.notifyType,
+      notifiedAt: incidentEscalationStepTargets.notifiedAt,
+      acknowledgedAt: incidentEscalationStepTargets.acknowledgedAt
+    })
+    .from(incidentEscalationStepTargets)
+    .leftJoin(
+      escalationTargetMember,
+      eq(escalationTargetMember.id, incidentEscalationStepTargets.targetMemberId)
+    )
+    .where(
+      and(
+        eq(incidentEscalationStepTargets.organizationId, organizationId),
+        eq(incidentEscalationStepTargets.incidentId, incidentId)
+      )
+    )
+    .orderBy(
+      asc(incidentEscalationStepTargets.stepOrder),
+      asc(incidentEscalationStepTargets.notifiedAt)
+    );
+
   const summary = incidentRow.summaryWhatHappened
     ? {
         whatHappened: incidentRow.summaryWhatHappened,
@@ -255,7 +290,8 @@ export async function getIncidentDetail(organizationId: string, incidentId: stri
     },
     summary,
     events,
-    followUps: incidentFollowUps
+    followUps: incidentFollowUps,
+    escalationTargets
   };
 }
 

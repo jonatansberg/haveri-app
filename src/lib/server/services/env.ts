@@ -75,3 +75,7 @@ export function getTeamsWebhookSecret(): string | null {
 export function getBlobStorageRoot(): string {
   return readEnv('BLOB_STORAGE_ROOT') ?? path.join(process.cwd(), '.blob-storage');
 }
+
+export function getTeamsDirectMessageSenderUserId(): string | null {
+  return readEnv('TEAMS_DM_SENDER_USER_ID') ?? null;
+}

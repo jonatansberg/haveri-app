@@ -337,6 +337,49 @@
 
   <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
     <Card.Header>
+      <Card.Title class="text-2xl text-slate-900">Escalation Targets</Card.Title>
+      <Card.Description class="text-slate-600">
+        Per-step notification and acknowledgement state.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content>
+      {#if data.escalationTargets.length === 0}
+        <Alert.Root class="border-warm-300 bg-warm-100/70 text-slate-800">
+          <Info />
+          <Alert.Title>No escalation targets yet</Alert.Title>
+          <Alert.Description>Targets will appear after escalation steps execute.</Alert.Description>
+        </Alert.Root>
+      {:else}
+        <div class="overflow-x-auto rounded-lg border border-warm-300/80">
+          <Table.Root>
+            <Table.Header>
+              <Table.Row>
+                <Table.Head>Step</Table.Head>
+                <Table.Head>Target</Table.Head>
+                <Table.Head>Notify type</Table.Head>
+                <Table.Head>Notified</Table.Head>
+                <Table.Head>Acknowledged</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {#each data.escalationTargets as target}
+                <Table.Row>
+                  <Table.Cell>#{target.stepOrder}</Table.Cell>
+                  <Table.Cell>{target.targetMemberName ?? target.targetMemberId}</Table.Cell>
+                  <Table.Cell>{target.notifyType}</Table.Cell>
+                  <Table.Cell>{new Date(target.notifiedAt).toLocaleString()}</Table.Cell>
+                  <Table.Cell>{target.acknowledgedAt ? new Date(target.acknowledgedAt).toLocaleString() : 'Pending'}</Table.Cell>
+                </Table.Row>
+              {/each}
+            </Table.Body>
+          </Table.Root>
+        </div>
+      {/if}
+    </Card.Content>
+  </Card.Root>
+
+  <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+    <Card.Header>
       <Card.Title class="text-2xl text-slate-900">Timeline</Card.Title>
       <Card.Description class="text-slate-600">Append-only event stream for this incident.</Card.Description>
     </Card.Header>

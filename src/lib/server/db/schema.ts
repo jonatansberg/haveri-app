@@ -501,6 +501,35 @@ export const incidentEscalationRuntime = pgTable('incident_escalation_runtime', 
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
 });
 
+export const incidentEscalationStepTargets = pgTable(
+  'incident_escalation_step_targets',
+  {
+    incidentId: uuid('incident_id')
+      .notNull()
+      .references(() => incidents.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    policyId: uuid('policy_id').references(() => escalationPolicies.id, { onDelete: 'set null' }),
+    stepOrder: integer('step_order').notNull(),
+    targetMemberId: uuid('target_member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'cascade' }),
+    notifyType: text('notify_type').notNull(),
+    notifiedAt: timestamp('notified_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true, mode: 'string' })
+  },
+  (table) => [
+    primaryKey({ columns: [table.incidentId, table.stepOrder, table.targetMemberId] }),
+    index('idx_escalation_step_targets_org_incident_step').on(
+      table.organizationId,
+      table.incidentId,
+      table.stepOrder
+    ),
+    index('idx_escalation_step_targets_member').on(table.targetMemberId)
+  ]
+);
+
 export const inboundIdempotency = pgTable(
   'inbound_idempotency',
   {

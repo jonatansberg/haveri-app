@@ -1,9 +1,11 @@
 import type { ChatAdapter } from '$lib/server/adapters/chat/contract';
 import {
+  addTeamsChannelMembers,
   archiveTeamsIncidentChannel,
   buildTeamsIncidentCard,
   createTeamsIncidentChannel,
   postTeamsGlobalIncidentCard,
+  sendTeamsDirectMessage,
   updateTeamsGlobalIncidentCard
 } from '$lib/server/adapters/teams/chat-ops';
 
@@ -42,6 +44,14 @@ export const teamsChatAdapter: ChatAdapter = {
   },
 
   async sendMessage(channelRef, content): Promise<void> {
+    if (channelRef.startsWith('dm|')) {
+      await sendTeamsDirectMessage({
+        platformUserId: channelRef.slice('dm|'.length),
+        content
+      });
+      return;
+    }
+
     await postTeamsGlobalIncidentCard({
       channelRef,
       card: buildMessageCard(content)
@@ -67,8 +77,11 @@ export const teamsChatAdapter: ChatAdapter = {
     });
   },
 
-  async addMembers(): Promise<void> {
-    return;
+  async addMembers(channelRef, members): Promise<void> {
+    await addTeamsChannelMembers({
+      channelRef,
+      platformUserIds: members
+    });
   },
 
   async resolveUser(): Promise<{ memberId: string; name: string } | null> {

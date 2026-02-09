@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/client';
 import { organizationChatSettings } from '$lib/server/db/schema';
 import {
+  getTeamsDirectMessageSenderUserId,
   getTeamsGlobalIncidentChannel,
   getTeamsGraphBaseUrlRoot,
   getTeamsIncidentChannelPrefix,
@@ -227,6 +228,15 @@ function extractResponseId(payload: unknown): string | null {
 
   const maybeRecord = payload as Record<string, unknown>;
   return typeof maybeRecord['id'] === 'string' ? maybeRecord['id'] : null;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 async function postAdaptiveCardMessage(input: {
@@ -454,4 +464,120 @@ export async function archiveTeamsIncidentChannel(input: { channelRef: string })
   if (!response.ok) {
     throw new ValidationError(`Unable to archive Teams channel (${response.status})`);
   }
+}
+
+export async function addTeamsChannelMembers(input: {
+  channelRef: string;
+  platformUserIds: string[];
+}): Promise<void> {
+  if (!isTeamsGraphConfigured() || input.platformUserIds.length === 0) {
+    return;
+  }
+
+  const channel = parseChannelRef(input.channelRef);
+  const token = await getTeamsGraphAccessToken();
+
+  for (const userId of [...new Set(input.platformUserIds)]) {
+    const response = await fetch(
+      `${getTeamsGraphBaseUrlRoot()}/v1.0/teams/${encodeURIComponent(channel.teamId)}/channels/${encodeURIComponent(channel.channelId)}/members`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          '@odata.type': '#microsoft.graph.aadUserConversationMember',
+          roles: [],
+          'user@odata.bind': `${getTeamsGraphBaseUrlRoot()}/v1.0/users('${userId}')`
+        })
+      }
+    );
+
+    if (response.ok || response.status === 400 || response.status === 409) {
+      continue;
+    }
+
+    throw new ValidationError(`Unable to add Teams channel member (${response.status})`);
+  }
+}
+
+async function createOneOnOneChat(senderUserId: string, recipientUserId: string): Promise<string> {
+  const token = await getTeamsGraphAccessToken();
+  const response = await fetch(`${getTeamsGraphBaseUrlRoot()}/v1.0/chats`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      chatType: 'oneOnOne',
+      members: [
+        {
+          '@odata.type': '#microsoft.graph.aadUserConversationMember',
+          roles: ['owner'],
+          'user@odata.bind': `${getTeamsGraphBaseUrlRoot()}/v1.0/users('${senderUserId}')`
+        },
+        {
+          '@odata.type': '#microsoft.graph.aadUserConversationMember',
+          roles: ['owner'],
+          'user@odata.bind': `${getTeamsGraphBaseUrlRoot()}/v1.0/users('${recipientUserId}')`
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new ValidationError(`Unable to create Teams direct chat (${response.status})`);
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>;
+  const chatId = extractResponseId(payload);
+  if (!chatId) {
+    throw new ValidationError('Teams direct chat creation succeeded but no chat id was returned');
+  }
+
+  return chatId;
+}
+
+async function postChatMessage(chatId: string, content: string): Promise<void> {
+  const token = await getTeamsGraphAccessToken();
+  const response = await fetch(
+    `${getTeamsGraphBaseUrlRoot()}/v1.0/chats/${encodeURIComponent(chatId)}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        body: {
+          contentType: 'html',
+          content: `<div>${escapeHtml(content)}</div>`
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new ValidationError(`Unable to send Teams direct message (${response.status})`);
+  }
+}
+
+export async function sendTeamsDirectMessage(input: {
+  platformUserId: string;
+  content: string;
+}): Promise<void> {
+  if (!isTeamsGraphConfigured()) {
+    return;
+  }
+
+  const senderUserId = getTeamsDirectMessageSenderUserId();
+  if (!senderUserId) {
+    console.warn('Skipping Teams direct message because TEAMS_DM_SENDER_USER_ID is not configured');
+    return;
+  }
+
+  const chatId = await createOneOnOneChat(senderUserId, input.platformUserId);
+  await postChatMessage(chatId, input.content);
 }

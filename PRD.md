@@ -118,11 +118,11 @@ This document intentionally keeps the strongest parts of the current build and o
   Build dashboard/API CRUD for create/edit/delete/reorder with validation and duplicate-condition warning.
   **AC:** policy edits apply to new incidents only.
 
-- [ ] **Notification delivery implementation**
+- [x] **Notification delivery implementation**
   Escalation step execution must actually notify targets (channel membership + DM content).
   **AC:** routed users are added to channel and receive DM with required incident fields.
 
-- [ ] **Per-step acknowledgment tracking**
+- [x] **Per-step acknowledgment tracking**
   Track notified/acknowledged state by routing step; stop only that step’s timer when any target acknowledges.
   **AC:** dashboard shows per-target state and escalation progression correctly.
 
