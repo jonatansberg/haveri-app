@@ -1,6 +1,8 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/client';
 import { facilities } from '$lib/server/db/schema';
+import { getChatAdapter } from '$lib/server/adapters/chat/factory';
+import { buildTeamsResolutionCard } from '$lib/server/adapters/teams/cards';
 import { parseTeamsCommand } from './command-parser';
 import { acknowledgeIncidentEscalation } from '$lib/server/services/escalation-service';
 import { findIncidentByChannel } from '$lib/server/services/incident-queries';
@@ -30,6 +32,7 @@ export interface TeamsInboundMessage {
     contentType: string | null;
     contentUrl: string | null;
   }[];
+  submission?: Record<string, unknown>;
 }
 
 function toRawPayload(payload: TeamsInboundMessage): Record<string, unknown> {
@@ -88,6 +91,33 @@ async function resolveCommandIncidentId(input: {
   return activeIncident.id;
 }
 
+function parseMultiSelectSubmission(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+
+  return [];
+}
+
+function parseFollowUpsFromCard(value: unknown): { description: string }[] {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split('\\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((description) => ({ description }));
+}
+
 export async function handleTeamsInbound(
   organizationId: string,
   payload: TeamsInboundMessage
@@ -99,6 +129,88 @@ export async function handleTeamsInbound(
     ...(payload.userName !== undefined ? { displayName: payload.userName } : {})
   });
   const command = parseTeamsCommand(payload.text);
+  const submissionAction =
+    payload.submission && typeof payload.submission['haveriAction'] === 'string'
+      ? payload.submission['haveriAction']
+      : null;
+
+  if (submissionAction === 'triage_submit') {
+    const explicitIncidentId =
+      typeof payload.submission?.['incidentId'] === 'string' ? payload.submission['incidentId'] : null;
+    const incidentId = await resolveCommandIncidentId({
+      organizationId,
+      platform: 'teams',
+      channelRef: payload.channelId,
+      incidentId: explicitIncidentId
+    });
+
+    const severityRaw = payload.submission?.['severity'];
+    const severity = typeof severityRaw === 'string' ? severityRaw.toUpperCase() : 'SEV2';
+    const areaIdRaw = payload.submission?.['areaId'];
+    const areaId = typeof areaIdRaw === 'string' && areaIdRaw.length > 0 ? areaIdRaw : null;
+    const assetIds = parseMultiSelectSubmission(payload.submission?.['assetIds']);
+    const descriptionRaw = payload.submission?.['description'];
+    const description = typeof descriptionRaw === 'string' && descriptionRaw.length > 0 ? descriptionRaw : null;
+
+    await incidentService.recordTriageResponse({
+      organizationId,
+      incidentId,
+      actorMemberId: memberId,
+      severity: severity === 'SEV1' || severity === 'SEV2' || severity === 'SEV3' ? severity : 'SEV2',
+      areaId,
+      assetIds,
+      description
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId,
+      incidentId
+    });
+
+    return {
+      ok: true,
+      action: 'triage_submitted',
+      incidentId
+    };
+  }
+
+  if (submissionAction === 'resolve_submit') {
+    const explicitIncidentId =
+      typeof payload.submission?.['incidentId'] === 'string' ? payload.submission['incidentId'] : null;
+    const incidentId = await resolveCommandIncidentId({
+      organizationId,
+      platform: 'teams',
+      channelRef: payload.channelId,
+      incidentId: explicitIncidentId
+    });
+
+    const whatHappened = typeof payload.submission?.['whatHappened'] === 'string' ? payload.submission['whatHappened'] : '';
+    const rootCause = typeof payload.submission?.['rootCause'] === 'string' ? payload.submission['rootCause'] : '';
+    const resolution = typeof payload.submission?.['resolution'] === 'string' ? payload.submission['resolution'] : '';
+    const followUps = parseFollowUpsFromCard(payload.submission?.['followUps']);
+
+    await incidentService.resolveIncident({
+      organizationId,
+      incidentId,
+      actorMemberId: memberId,
+      summary: {
+        whatHappened: whatHappened || 'Resolved via Teams card',
+        rootCause: rootCause || 'Unspecified',
+        resolution: resolution || whatHappened || 'Resolved via Teams card',
+        impact: {}
+      },
+      followUps
+    });
+    await syncGlobalIncidentAnnouncement({
+      organizationId,
+      incidentId
+    });
+
+    return {
+      ok: true,
+      action: 'incident_resolved',
+      incidentId
+    };
+  }
 
   if (command?.type === 'declare') {
     const facilityId = await resolveDefaultFacilityId(organizationId);
@@ -146,25 +258,36 @@ export async function handleTeamsInbound(
       incidentId: command.incidentId
     });
 
-    await incidentService.resolveIncident({
-      organizationId,
+    const adapter = getChatAdapter('teams');
+    const card = buildTeamsResolutionCard({
       incidentId,
-      actorMemberId: memberId,
-      summary: {
-        whatHappened: command.summaryText,
-        rootCause: 'Unknown (resolved through chat command)',
-        resolution: command.summaryText,
-        impact: {}
-      }
+      initialSummary: command.summaryText
     });
-    await syncGlobalIncidentAnnouncement({
-      organizationId,
-      incidentId
+    await adapter.sendCard(payload.channelId, card);
+
+    await incidentService.addEvent({
+      event: {
+        organizationId,
+        incidentId,
+        eventType: 'message',
+        eventVersion: 1,
+        schemaVersion: 1,
+        actorType: memberId ? 'member' : 'integration',
+        actorMemberId: memberId,
+        actorExternalId: payload.userId,
+        sourcePlatform: 'teams',
+        sourceEventId: payload.id,
+        payload: {
+          source: 'teams_command',
+          kind: 'resolution_prompted'
+        },
+        rawSourcePayload: toRawPayload(payload)
+      }
     });
 
     return {
       ok: true,
-      action: 'incident_resolved',
+      action: 'resolution_card_sent',
       incidentId
     };
   }

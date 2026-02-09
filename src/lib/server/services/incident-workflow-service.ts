@@ -1,6 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/client';
-import { members } from '$lib/server/db/schema';
+import { areas, assets, incidents, members } from '$lib/server/db/schema';
+import { buildTeamsTriageCard } from '$lib/server/adapters/teams/cards';
 import type { IncidentSeverity } from '$lib/shared/domain';
 import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
 import type { ChatAdapter } from '$lib/server/adapters/chat/contract';
@@ -140,6 +141,54 @@ function buildIncidentCardFromDetail(
   };
 }
 
+function toSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function buildDeterministicChannelName(input: { incidentId: string; title: string }): string {
+  const base = `inc-${input.incidentId.slice(0, 8)}`;
+  const suffixBudget = Math.max(0, 50 - base.length - 1);
+  const suffix = toSlug(input.title).slice(0, suffixBudget);
+  return suffix.length > 0 ? `${base}-${suffix}` : base;
+}
+
+async function buildTriageCardForIncident(input: {
+  organizationId: string;
+  incidentId: string;
+  facilityId: string;
+  severity: string;
+  initialAreaId?: string | null;
+  initialDescription?: string | null;
+}): Promise<Record<string, unknown>> {
+  const [areaRows, assetRows] = await Promise.all([
+    db
+      .select({ id: areas.id, name: areas.name })
+      .from(areas)
+      .where(and(eq(areas.organizationId, input.organizationId), eq(areas.facilityId, input.facilityId)))
+      .orderBy(asc(areas.name))
+      .then((rows) => rows),
+    db
+      .select({ id: assets.id, name: assets.name })
+      .from(assets)
+      .innerJoin(areas, eq(areas.id, assets.areaId))
+      .where(and(eq(assets.organizationId, input.organizationId), eq(areas.facilityId, input.facilityId)))
+      .orderBy(asc(assets.name))
+      .then((rows) => rows)
+  ]);
+
+  return buildTeamsTriageCard({
+    incidentId: input.incidentId,
+    severity: input.severity,
+    areaOptions: areaRows.map((area) => ({ title: area.name, value: area.id })),
+    assetOptions: assetRows.map((asset) => ({ title: asset.name, value: asset.id })),
+    initialAreaId: input.initialAreaId ?? null,
+    initialDescription: input.initialDescription ?? null
+  });
+}
+
 export async function declareIncidentWithWorkflow(
   input: DeclareIncidentWorkflowInput
 ): Promise<{ incidentId: string; channelRef: string; globalChannelRef: string | null }> {
@@ -166,20 +215,13 @@ export async function declareIncidentWithWorkflow(
 
   let incidentChannelRef = input.sourceChannelRef ?? `web:${Date.now()}`;
   let globalChannelRef: string | null = null;
+  let shouldCreateTeamsChannel = false;
 
   if (input.chatPlatform === 'teams') {
-    const adapter = input.chatAdapter ?? getChatAdapter('teams');
     const settings = await getTeamsChatSettings(input.organizationId);
     globalChannelRef = settings.globalIncidentChannelRef;
-
-    if (settings.autoCreateIncidentChannel) {
-      const channel = await adapter.createChannel(input.title, [], {
-        severity: input.severity
-      });
-      incidentChannelRef = channel.channelRef;
-    } else {
-      incidentChannelRef = input.sourceChannelRef ?? `teams:${Date.now()}`;
-    }
+    shouldCreateTeamsChannel = settings.autoCreateIncidentChannel;
+    incidentChannelRef = input.sourceChannelRef ?? `teams:${Date.now()}`;
   }
 
   const incident = await incidentService.declareIncident({
@@ -200,6 +242,23 @@ export async function declareIncidentWithWorkflow(
     ...(input.tags ? { tags: input.tags } : {})
   });
 
+  if (input.chatPlatform === 'teams' && shouldCreateTeamsChannel) {
+    const adapter = input.chatAdapter ?? getChatAdapter('teams');
+    const channelName = buildDeterministicChannelName({
+      incidentId: incident.id,
+      title: input.title
+    });
+    const channel = await adapter.createChannel(channelName, [], {
+      severity: input.severity
+    });
+    incidentChannelRef = channel.channelRef;
+
+    await db
+      .update(incidents)
+      .set({ chatChannelRef: channel.channelRef })
+      .where(and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, incident.id)));
+  }
+
   await incidentService.addEvent({
     event: {
       organizationId: input.organizationId,
@@ -209,6 +268,7 @@ export async function declareIncidentWithWorkflow(
       schemaVersion: 1,
       actorType: 'system',
       payload: {
+        action: 'prompted',
         workflowVersion: staticIncidentWorkflow.version,
         responsibleLeadMemberId,
         commsLeadMemberId,
@@ -216,6 +276,19 @@ export async function declareIncidentWithWorkflow(
       }
     }
   });
+
+  if (input.chatPlatform === 'teams') {
+    const adapter = input.chatAdapter ?? getChatAdapter('teams');
+    const triageCard = await buildTriageCardForIncident({
+      organizationId: input.organizationId,
+      incidentId: incident.id,
+      facilityId: input.facilityId,
+      severity: input.severity,
+      initialAreaId: input.areaId ?? null,
+      initialDescription: input.description ?? null
+    });
+    await adapter.sendCard(incidentChannelRef, triageCard);
+  }
 
   if (input.chatPlatform === 'teams' && globalChannelRef) {
     const adapter = input.chatAdapter ?? getChatAdapter('teams');

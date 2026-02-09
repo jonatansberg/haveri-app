@@ -8,8 +8,13 @@ const mockSyncGlobalIncidentAnnouncement = vi.hoisted(() => vi.fn());
 const mockResolveMemberByNameHint = vi.hoisted(() => vi.fn());
 const mockResolveOrProvisionMemberByPlatformIdentity = vi.hoisted(() => vi.fn());
 const mockPersistIncidentAttachments = vi.hoisted(() => vi.fn());
+const mockChatAdapter = vi.hoisted(() => ({
+  sendCard: vi.fn()
+}));
+const mockGetChatAdapter = vi.hoisted(() => vi.fn());
 const mockIncidentService = vi.hoisted(() => ({
   resolveIncident: vi.fn(),
+  recordTriageResponse: vi.fn(),
   updateStatus: vi.fn(),
   changeSeverity: vi.fn(),
   assignLead: vi.fn(),
@@ -46,6 +51,10 @@ vi.mock('$lib/server/services/incident-service', () => ({
   incidentService: mockIncidentService
 }));
 
+vi.mock('$lib/server/adapters/chat/factory', () => ({
+  getChatAdapter: mockGetChatAdapter
+}));
+
 import { handleTeamsInbound } from './adapter';
 
 function selectChain(rows: unknown[]) {
@@ -68,6 +77,11 @@ describe('teams adapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPersistIncidentAttachments.mockResolvedValue([]);
+    mockGetChatAdapter.mockReturnValue(mockChatAdapter);
+    mockChatAdapter.sendCard.mockResolvedValue({
+      messageRef: 'teams|team-1|channel-1|message|msg-1',
+      channelRef: 'teams|team-1|channel-1'
+    });
   });
 
   it('handles /incident command and maps workflow roles', async () => {
@@ -254,7 +268,7 @@ describe('teams adapter', () => {
     });
   });
 
-  it('handles /resolve command and syncs global announcement', async () => {
+  it('handles /resolve command by posting resolution card', async () => {
     mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
       memberId: 'member-actor',
       name: 'Actor',
@@ -269,24 +283,23 @@ describe('teams adapter', () => {
       userId: 'teams-user-1'
     });
 
-    expect(mockIncidentService.resolveIncident).toHaveBeenCalledWith({
-      organizationId: 'org-1',
-      incidentId: 'inc-1',
-      actorMemberId: 'member-actor',
-      summary: {
-        whatHappened: 'Cleared obstruction and restarted',
-        rootCause: 'Unknown (resolved through chat command)',
-        resolution: 'Cleared obstruction and restarted',
-        impact: {}
-      }
-    });
-    expect(mockSyncGlobalIncidentAnnouncement).toHaveBeenCalledWith({
-      organizationId: 'org-1',
-      incidentId: 'inc-1'
-    });
+    expect(mockChatAdapter.sendCard).toHaveBeenCalledWith(
+      'teams:incident:1',
+      expect.objectContaining({
+        type: 'AdaptiveCard'
+      })
+    );
+    const resolutionPromptEvent = mockIncidentService.addEvent.mock.calls[0]?.[0] as {
+      event: {
+        eventType: string;
+        incidentId: string;
+      };
+    };
+    expect(resolutionPromptEvent.event.eventType).toBe('message');
+    expect(resolutionPromptEvent.event.incidentId).toBe('inc-1');
     expect(result).toEqual({
       ok: true,
-      action: 'incident_resolved',
+      action: 'resolution_card_sent',
       incidentId: 'inc-1'
     });
   });
@@ -318,6 +331,87 @@ describe('teams adapter', () => {
     expect(result).toEqual({
       ok: true,
       action: 'incident_acknowledged',
+      incidentId: 'inc-1'
+    });
+  });
+
+  it('handles triage card submission', async () => {
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-triage-submit',
+      type: 'message',
+      text: '',
+      channelId: 'teams:incident:1',
+      userId: 'teams-user-1',
+      submission: {
+        haveriAction: 'triage_submit',
+        incidentId: 'inc-1',
+        severity: 'SEV1',
+        areaId: 'area-1',
+        assetIds: 'asset-1,asset-2',
+        description: 'Pressure drop'
+      }
+    });
+
+    expect(mockIncidentService.recordTriageResponse).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1',
+      actorMemberId: 'member-actor',
+      severity: 'SEV1',
+      areaId: 'area-1',
+      assetIds: ['asset-1', 'asset-2'],
+      description: 'Pressure drop'
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'triage_submitted',
+      incidentId: 'inc-1'
+    });
+  });
+
+  it('handles resolve card submission', async () => {
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-resolve-submit',
+      type: 'message',
+      text: '',
+      channelId: 'teams:incident:1',
+      userId: 'teams-user-1',
+      submission: {
+        haveriAction: 'resolve_submit',
+        incidentId: 'inc-1',
+        whatHappened: 'Line stopped',
+        rootCause: 'Valve failure',
+        resolution: 'Replaced valve',
+        followUps: 'Inspect seals\\nReview SOP'
+      }
+    });
+
+    expect(mockIncidentService.resolveIncident).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-1',
+      actorMemberId: 'member-actor',
+      summary: {
+        whatHappened: 'Line stopped',
+        rootCause: 'Valve failure',
+        resolution: 'Replaced valve',
+        impact: {}
+      },
+      followUps: [{ description: 'Inspect seals' }, { description: 'Review SOP' }]
+    });
+    expect(result).toEqual({
+      ok: true,
+      action: 'incident_resolved',
       incidentId: 'inc-1'
     });
   });

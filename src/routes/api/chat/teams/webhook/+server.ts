@@ -73,7 +73,8 @@ const teamsActivityPayloadSchema = z
           contentUrl: z.string().optional()
         })
       )
-      .optional()
+      .optional(),
+    value: z.record(z.string(), z.unknown()).optional()
   })
   .passthrough();
 
@@ -309,7 +310,8 @@ function toTeamsInbound(
     ...(tenantId ? { tenantId } : {}),
     ...(payload.from?.name ? { userName: payload.from.name } : {}),
     ...(payload.timestamp ? { timestamp: payload.timestamp } : {}),
-    attachments: normalizeAttachments(payload.attachments)
+    attachments: normalizeAttachments(payload.attachments),
+    ...(payload.value ? { submission: payload.value } : {})
   };
 }
 

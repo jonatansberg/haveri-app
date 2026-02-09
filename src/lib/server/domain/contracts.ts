@@ -65,6 +65,16 @@ export interface AddEventInput {
   event: IncidentEvent;
 }
 
+export interface RecordTriageResponseInput {
+  organizationId: string;
+  incidentId: string;
+  actorMemberId?: string | null;
+  severity: IncidentSeverity;
+  areaId?: string | null;
+  assetIds?: string[];
+  description?: string | null;
+}
+
 export interface ResolveIncidentInput {
   organizationId: string;
   incidentId: string;
@@ -104,6 +114,7 @@ export interface IncidentService {
   assignCommsLead(input: AssignCommsLeadInput): Promise<void>;
   setAnnouncementRefs(input: SetAnnouncementRefsInput): Promise<void>;
   addEvent(input: AddEventInput): Promise<void>;
+  recordTriageResponse(input: RecordTriageResponseInput): Promise<void>;
   resolveIncident(input: ResolveIncidentInput): Promise<void>;
   annotateSummary(input: AnnotateSummaryInput): Promise<void>;
   closeIncident(input: CloseIncidentInput): Promise<void>;

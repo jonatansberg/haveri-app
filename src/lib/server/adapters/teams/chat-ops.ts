@@ -195,6 +195,10 @@ function parseMessageRef(messageRef: string, channelRef: string): TeamsMessageLo
 }
 
 function toChannelName(input: { incidentTitle: string; severity: string }): string {
+  if (input.incidentTitle.toLowerCase().startsWith('inc-')) {
+    return toSlug(input.incidentTitle).slice(0, 50);
+  }
+
   const prefix = getTeamsIncidentChannelPrefix();
   const stem = toSlug(input.incidentTitle) || 'incident';
   return `${prefix}-${input.severity.toLowerCase()}-${stem}`.slice(0, 50);

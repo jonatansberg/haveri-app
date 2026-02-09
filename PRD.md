@@ -63,12 +63,12 @@ This document intentionally keeps the strongest parts of the current build and o
   Add support for configurable declaration command (`/haveri` or `/incident`) and missing lifecycle commands (`/investigating`, `/mitigated`, `/severity`, `/lead`).
   **AC:** command set works from Teams and maps to event log consistently.
 
-- [ ] **Triage + resolution adaptive cards (structured input)**
+- [x] **Triage + resolution adaptive cards (structured input)**
   Implement triage card (severity/area/assets/description) and resolution card (summary/root cause/actions).
   **AC:** cards render on desktop/mobile, validate input, and append correct events.
   **Downstream (P2/P3):** structured fields and stable taxonomies are required for embeddings, similar-incident retrieval, and trend analysis.
 
-- [ ] **Teams channel operations completion**
+- [x] **Teams channel operations completion**
   Enforce naming format `inc-{incident_number}-{short_description}` (max 50 chars) and add routing-selected members automatically.
   **AC:** created channel name format is deterministic; targeted members are added.
 
@@ -178,11 +178,11 @@ This document intentionally keeps the strongest parts of the current build and o
   Add Teams webhook verification path.
   **AC:** cross-tenant access attempts fail regardless of header manipulation; invalid webhook signatures rejected.
 
-- [ ] **Data residency controls**
+- [x] **Data residency controls**
   Fly app region is EU, but DB/blob residency guarantees are not enforced in-app.
   **AC:** documented and validated EU region for DB + storage in production.
 
-- [ ] **Backup and recovery**
+- [x] **Backup and recovery**
   Implement daily backups + retention and test restore runbook.
   **AC:** successful restore test with integrity verification.
 

@@ -111,6 +111,56 @@ describe('incidentService.changeSeverity', () => {
   });
 });
 
+describe('incidentService.recordTriageResponse', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLockIncidentCurrentState.mockResolvedValue({
+      status: 'DECLARED',
+      severity: 'SEV3',
+      assignedToMemberId: 'member-1',
+      lastEventSequence: 3
+    });
+
+    mockWithTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+      const whereResult = { where: vi.fn().mockResolvedValue(undefined) };
+      const update = vi.fn(() => ({ set: vi.fn(() => whereResult) }));
+      const del = vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) }));
+      const insert = vi.fn(() => ({ values: vi.fn().mockResolvedValue(undefined) }));
+      return callback({ update, delete: del, insert });
+    });
+    mockScheduleEscalationForIncident.mockResolvedValue({ scheduled: true });
+  });
+
+  it('records triage response and schedules routing reevaluation', async () => {
+    await incidentService.recordTriageResponse({
+      organizationId: 'org-1',
+      incidentId: 'inc-77',
+      actorMemberId: 'member-2',
+      severity: 'SEV1',
+      areaId: 'area-1',
+      assetIds: ['asset-1'],
+      description: 'Pressure drop on main valve'
+    });
+
+    const triageEvent = mockAppendIncidentEvent.mock.calls[0]?.[1] as {
+      eventType: string;
+      payload: {
+        fromSeverity: string;
+        toSeverity: string;
+        areaId: string;
+      };
+    };
+    expect(triageEvent.eventType).toBe('triage_response');
+    expect(triageEvent.payload.fromSeverity).toBe('SEV3');
+    expect(triageEvent.payload.toSeverity).toBe('SEV1');
+    expect(triageEvent.payload.areaId).toBe('area-1');
+    expect(mockScheduleEscalationForIncident).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-77'
+    });
+  });
+});
+
 describe('incidentService.annotateSummary', () => {
   beforeEach(() => {
     vi.clearAllMocks();

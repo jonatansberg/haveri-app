@@ -16,6 +16,7 @@ import type {
   CloseIncidentInput,
   DeclareIncidentInput,
   IncidentService,
+  RecordTriageResponseInput,
   ResolveIncidentInput,
   SetAnnouncementRefsInput,
   UpdateStatusInput
@@ -296,6 +297,69 @@ export class IncidentServiceImpl implements IncidentService {
   async addEvent(input: AddEventInput): Promise<void> {
     await withTransaction(async (tx) => {
       await appendIncidentEvent(tx, input.event);
+    });
+  }
+
+  async recordTriageResponse(input: RecordTriageResponseInput): Promise<void> {
+    await withTransaction(async (tx) => {
+      const current = await lockIncidentCurrentState(tx, input.organizationId, input.incidentId);
+
+      await tx
+        .update(incidents)
+        .set({
+          areaId: input.areaId ?? null
+        })
+        .where(
+          and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, input.incidentId))
+        );
+
+      await tx
+        .delete(incidentAssets)
+        .where(
+          and(
+            eq(incidentAssets.organizationId, input.organizationId),
+            eq(incidentAssets.incidentId, input.incidentId)
+          )
+        );
+
+      if ((input.assetIds ?? []).length > 0) {
+        await tx.insert(incidentAssets).values(
+          (input.assetIds ?? []).map((assetId) => ({
+            incidentId: input.incidentId,
+            assetId,
+            organizationId: input.organizationId
+          }))
+        );
+      }
+
+      await appendIncidentEvent(
+        tx,
+        buildIncidentEvent({
+          organizationId: input.organizationId,
+          incidentId: input.incidentId,
+          eventType: 'triage_response',
+          actorType: deriveActorType({
+            actorMemberId: input.actorMemberId ?? null,
+            actorExternalId: null
+          }),
+          actorMemberId: input.actorMemberId ?? null,
+          payload: {
+            fromSeverity: current.severity,
+            toSeverity: input.severity,
+            areaId: input.areaId ?? null,
+            assetIds: input.assetIds ?? [],
+            description: input.description ?? null
+          }
+        }),
+        {
+          severity: input.severity
+        }
+      );
+    });
+
+    await scheduleEscalationForIncident({
+      organizationId: input.organizationId,
+      incidentId: input.incidentId
     });
   }
 
