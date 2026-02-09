@@ -53,6 +53,8 @@ Deploy Redis using included config:
 fly deploy -c fly.redis.toml --app haveri-redis
 ```
 
+Note: Fly private networking is IPv6-first. Keep Redis bound to both `0.0.0.0` and `::` (as in `fly.redis.toml`) so `*.internal` connections succeed.
+
 Set `REDIS_URL` in the Haveri app:
 
 ```bash
