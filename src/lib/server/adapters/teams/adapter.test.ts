@@ -290,7 +290,14 @@ describe('teams adapter', () => {
       channelId: 'teams:incident:99',
       userId: 'teams-user-3',
       userName: 'Operator 3',
-      timestamp: '2026-02-06T22:00:00.000Z'
+      timestamp: '2026-02-06T22:00:00.000Z',
+      attachments: [
+        {
+          name: 'photo.jpg',
+          contentType: 'image/jpeg',
+          contentUrl: 'https://files.example/photo.jpg'
+        }
+      ]
     });
 
     expect(mockIncidentService.addEvent).toHaveBeenCalledTimes(1);
@@ -303,6 +310,7 @@ describe('teams adapter', () => {
         actorMemberId: string | null;
         sourcePlatform: string;
         sourceEventId: string;
+        payload: Record<string, unknown>;
       };
     };
     expect(addEventCall.event.organizationId).toBe('org-1');
@@ -312,6 +320,15 @@ describe('teams adapter', () => {
     expect(addEventCall.event.actorMemberId).toBeNull();
     expect(addEventCall.event.sourcePlatform).toBe('teams');
     expect(addEventCall.event.sourceEventId).toBe('msg-3');
+    expect(addEventCall.event.payload).toMatchObject({
+      attachments: [
+        {
+          name: 'photo.jpg',
+          contentType: 'image/jpeg',
+          contentUrl: 'https://files.example/photo.jpg'
+        }
+      ]
+    });
     expect(result).toEqual({
       ok: true,
       action: 'message_captured',

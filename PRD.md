@@ -72,7 +72,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Enforce naming format `inc-{incident_number}-{short_description}` (max 50 chars) and add routing-selected members automatically.
   **AC:** created channel name format is deterministic; targeted members are added.
 
-- [ ] **Message capture robustness**
+- [x] **Message capture robustness**
   Capture attachments and normalize channel identifiers so incident-channel messages always map correctly.
   **AC:** text + attachments from incident channel appear as timeline events with correct actor/source metadata.
 

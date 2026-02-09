@@ -23,6 +23,11 @@ export interface TeamsInboundMessage {
   userId: string;
   userName?: string;
   timestamp?: string;
+  attachments?: {
+    name: string | null;
+    contentType: string | null;
+    contentUrl: string | null;
+  }[];
 }
 
 function toRawPayload(payload: TeamsInboundMessage): Record<string, unknown> {
@@ -298,7 +303,8 @@ export async function handleTeamsInbound(
       payload: {
         text: payload.text,
         userName: payload.userName ?? null,
-        timestamp: payload.timestamp ?? null
+        timestamp: payload.timestamp ?? null,
+        attachments: payload.attachments ?? []
       },
       rawSourcePayload: toRawPayload(payload)
     }

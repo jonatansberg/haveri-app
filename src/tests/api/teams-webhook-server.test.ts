@@ -111,6 +111,13 @@ describe('POST /api/chat/teams/webhook', () => {
           id: '19:channel@thread.tacv2'
         }
       },
+      attachments: [
+        {
+          name: 'report.pdf',
+          contentType: 'application/pdf',
+          contentUrl: 'https://files.example/report.pdf'
+        }
+      ],
       timestamp: '2026-02-07T10:00:00.000Z'
     });
 
@@ -127,7 +134,14 @@ describe('POST /api/chat/teams/webhook', () => {
         channelId: '19:channel@thread.tacv2',
         userId: 'aad-user-1',
         userName: 'Operator',
-        timestamp: '2026-02-07T10:00:00.000Z'
+        timestamp: '2026-02-07T10:00:00.000Z',
+        attachments: [
+          {
+            name: 'report.pdf',
+            contentType: 'application/pdf',
+            contentUrl: 'https://files.example/report.pdf'
+          }
+        ]
       })
     );
   });

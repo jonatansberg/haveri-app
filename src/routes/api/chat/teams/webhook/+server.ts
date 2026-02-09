@@ -18,7 +18,16 @@ const teamsPayloadSchema = z.object({
   channelId: z.string().min(1),
   userId: z.string().min(1),
   userName: z.string().optional(),
-  timestamp: z.string().optional()
+  timestamp: z.string().optional(),
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        contentType: z.string().optional(),
+        contentUrl: z.string().optional()
+      })
+    )
+    .optional()
 });
 
 const teamsActivityPayloadSchema = z
@@ -47,6 +56,15 @@ const teamsActivityPayloadSchema = z
           })
           .optional()
       })
+      .optional(),
+    attachments: z
+      .array(
+        z.object({
+          name: z.string().optional(),
+          contentType: z.string().optional(),
+          contentUrl: z.string().optional()
+        })
+      )
       .optional()
   })
   .passthrough();
@@ -67,6 +85,30 @@ interface WebhookRequestLogContext {
   contentType: string | null;
   contentLength: string | null;
   userAgent: string | null;
+}
+
+function normalizeAttachments(
+  attachments:
+    | {
+        name?: string | undefined;
+        contentType?: string | undefined;
+        contentUrl?: string | undefined;
+      }[]
+    | undefined
+): {
+  name: string | null;
+  contentType: string | null;
+  contentUrl: string | null;
+}[] {
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
+
+  return attachments.map((attachment) => ({
+    name: attachment.name ?? null,
+    contentType: attachment.contentType ?? null,
+    contentUrl: attachment.contentUrl ?? null
+  }));
 }
 
 function getRequestLogContext(event: Parameters<RequestHandler>[0], orgId: string): WebhookRequestLogContext {
@@ -164,7 +206,8 @@ function toTeamsInbound(
       channelId: payload.channelId,
       userId: payload.userId,
       ...(payload.userName ? { userName: payload.userName } : {}),
-      ...(payload.timestamp ? { timestamp: payload.timestamp } : {})
+      ...(payload.timestamp ? { timestamp: payload.timestamp } : {}),
+      attachments: normalizeAttachments(payload.attachments)
     };
   }
 
@@ -187,7 +230,8 @@ function toTeamsInbound(
     channelId,
     userId,
     ...(payload.from?.name ? { userName: payload.from.name } : {}),
-    ...(payload.timestamp ? { timestamp: payload.timestamp } : {})
+    ...(payload.timestamp ? { timestamp: payload.timestamp } : {}),
+    attachments: normalizeAttachments(payload.attachments)
   };
 }
 
