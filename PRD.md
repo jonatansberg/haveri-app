@@ -128,11 +128,11 @@ This document intentionally keeps the strongest parts of the current build and o
 
 ## 5) Follow-ups
 
-- [ ] **Assignee notifications on creation**
+- [x] **Assignee notifications on creation**
   Notify assigned members immediately when follow-ups are created.
   **AC:** assignment DM sent with incident context and due date.
 
-- [ ] **Reminder engine**
+- [x] **Reminder engine**
   Add reminder scheduling for D-1, due date, and overdue milestones.
   **AC:** reminders fire at configured times; overdue flags visible.
 

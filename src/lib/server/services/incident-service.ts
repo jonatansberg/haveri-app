@@ -25,6 +25,7 @@ import type { DeclaredIncident, IncidentEvent } from '$lib/shared/domain';
 import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
 import { appendIncidentEvent, insertInitialIncidentEvent, lockIncidentCurrentState } from './event-store';
 import { ValidationError } from './errors';
+import { notifyFollowUpAssignments } from './follow-up-notification-service';
 
 function deriveActorType(input: {
   actorMemberId: string | null | undefined;
@@ -311,7 +312,26 @@ export class IncidentServiceImpl implements IncidentService {
       }
     );
 
+    const createdFollowUpsForNotification: {
+      id: string;
+      description: string;
+      assignedToMemberId: string | null;
+      dueDate: string | null;
+    }[] = [];
+    let incidentTitle = input.incidentId;
+
     await withTransaction(async (tx) => {
+      const incidentRecord = await tx
+        .select({ title: incidents.title })
+        .from(incidents)
+        .where(and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, input.incidentId)))
+        .limit(1)
+        .then((rows) => rows[0]);
+
+      if (incidentRecord?.title) {
+        incidentTitle = incidentRecord.title;
+      }
+
       await tx
         .insert(incidentSummaries)
         .values({
@@ -347,6 +367,15 @@ export class IncidentServiceImpl implements IncidentService {
             status: 'OPEN'
           })
           .returning({ id: followUps.id });
+
+        if (created?.id) {
+          createdFollowUpsForNotification.push({
+            id: created.id,
+            description: followUp.description,
+            assignedToMemberId: followUp.assignedToMemberId ?? null,
+            dueDate: followUp.dueDate ?? null
+          });
+        }
 
         await appendIncidentEvent(
           tx,
@@ -386,6 +415,23 @@ export class IncidentServiceImpl implements IncidentService {
         })
       );
     });
+
+    if (createdFollowUpsForNotification.length > 0) {
+      try {
+        await notifyFollowUpAssignments({
+          organizationId: input.organizationId,
+          incidentId: input.incidentId,
+          incidentTitle,
+          followUps: createdFollowUpsForNotification
+        });
+      } catch (error) {
+        console.warn('Failed to dispatch follow-up assignment notifications during resolve', {
+          organizationId: input.organizationId,
+          incidentId: input.incidentId,
+          error
+        });
+      }
+    }
   }
 
   async annotateSummary(input: AnnotateSummaryInput): Promise<void> {
@@ -455,7 +501,26 @@ export class IncidentServiceImpl implements IncidentService {
       }
     );
 
+    const createdFollowUpsForNotification: {
+      id: string;
+      description: string;
+      assignedToMemberId: string | null;
+      dueDate: string | null;
+    }[] = [];
+    let incidentTitle = input.incidentId;
+
     await withTransaction(async (tx) => {
+      const incidentRecord = await tx
+        .select({ title: incidents.title })
+        .from(incidents)
+        .where(and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, input.incidentId)))
+        .limit(1)
+        .then((rows) => rows[0]);
+
+      if (incidentRecord?.title) {
+        incidentTitle = incidentRecord.title;
+      }
+
       let createdCount = 0;
 
       for (const followUp of input.followUps) {
@@ -472,6 +537,15 @@ export class IncidentServiceImpl implements IncidentService {
           .returning({ id: followUps.id });
 
         createdCount += 1;
+
+        if (created?.id) {
+          createdFollowUpsForNotification.push({
+            id: created.id,
+            description: followUp.description,
+            assignedToMemberId: followUp.assignedToMemberId ?? null,
+            dueDate: followUp.dueDate ?? null
+          });
+        }
 
         await appendIncidentEvent(
           tx,
@@ -511,6 +585,23 @@ export class IncidentServiceImpl implements IncidentService {
         })
       );
     });
+
+    if (createdFollowUpsForNotification.length > 0) {
+      try {
+        await notifyFollowUpAssignments({
+          organizationId: input.organizationId,
+          incidentId: input.incidentId,
+          incidentTitle,
+          followUps: createdFollowUpsForNotification
+        });
+      } catch (error) {
+        console.warn('Failed to dispatch follow-up assignment notifications during close', {
+          organizationId: input.organizationId,
+          incidentId: input.incidentId,
+          error
+        });
+      }
+    }
   }
 }
 

@@ -18,6 +18,12 @@ Daily backup with 30-day retention:
 DATABASE_URL="postgres://..." ./src/scripts/ops/backup-postgres.sh
 ```
 
+## Follow-up Reminder Job
+Daily reminder execution for assigned follow-ups (D-1, due date, D+1):
+```bash
+npm run ops:followup-reminders
+```
+
 ### Restore drill
 1. Restore backup to a temporary database.
 2. Run core integrity checks:

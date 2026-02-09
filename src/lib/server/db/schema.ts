@@ -446,6 +446,26 @@ export const followUps = pgTable(
   (table) => [index('idx_follow_ups_org_status_due').on(table.organizationId, table.status, table.dueDate)]
 );
 
+export const followUpReminderLog = pgTable(
+  'follow_up_reminder_log',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    followUpId: uuid('follow_up_id')
+      .notNull()
+      .references(() => followUps.id, { onDelete: 'cascade' }),
+    reminderType: text('reminder_type').notNull(),
+    reminderDate: date('reminder_date', { mode: 'string' }).notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
+  },
+  (table) => [
+    unique().on(table.followUpId, table.reminderType, table.reminderDate),
+    index('idx_follow_up_reminder_log_org_date').on(table.organizationId, table.reminderDate)
+  ]
+);
+
 export const escalationPolicies = pgTable(
   'escalation_policies',
   {

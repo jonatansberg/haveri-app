@@ -5,6 +5,7 @@ const mockWithTransaction = vi.hoisted(() => vi.fn());
 const mockLockIncidentCurrentState = vi.hoisted(() => vi.fn());
 const mockAppendIncidentEvent = vi.hoisted(() => vi.fn());
 const mockScheduleEscalationForIncident = vi.hoisted(() => vi.fn());
+const mockNotifyFollowUpAssignments = vi.hoisted(() => vi.fn());
 
 vi.mock('$lib/server/db/client', () => ({
   withTransaction: mockWithTransaction
@@ -20,7 +21,29 @@ vi.mock('$lib/server/queue/scheduler', () => ({
   scheduleEscalationForIncident: mockScheduleEscalationForIncident
 }));
 
+vi.mock('./follow-up-notification-service', () => ({
+  notifyFollowUpAssignments: mockNotifyFollowUpAssignments
+}));
+
 import { incidentService } from './incident-service';
+
+function selectChain(rows: unknown[]) {
+  const chain = {
+    from: vi.fn(),
+    where: vi.fn(),
+    limit: vi.fn(),
+    then: vi.fn()
+  };
+
+  chain.from.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  chain.then.mockImplementation((resolve: (value: unknown[]) => unknown) =>
+    Promise.resolve(resolve(rows))
+  );
+
+  return chain;
+}
 
 describe('incidentService.changeSeverity', () => {
   beforeEach(() => {
@@ -169,12 +192,13 @@ describe('incidentService.resolveIncident', () => {
       const returning = vi.fn().mockResolvedValue([{ id: 'follow-up-1' }]);
       const values = vi.fn(() => ({ onConflictDoUpdate, returning }));
       const insert = vi.fn(() => ({ values }));
+      const select = vi.fn().mockReturnValue(selectChain([{ title: 'Pump failure' }]));
       const update = vi.fn(() => ({
         set: vi.fn(() => ({
           where: vi.fn().mockResolvedValue(undefined)
         }))
       }));
-      return callback({ insert, update });
+      return callback({ insert, update, select });
     });
   });
 
@@ -205,5 +229,18 @@ describe('incidentService.resolveIncident', () => {
 
     expect(eventTypes).toContain('follow_up_created');
     expect(eventTypes).toContain('resolved');
+    expect(mockNotifyFollowUpAssignments).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      incidentId: 'inc-99',
+      incidentTitle: 'Pump failure',
+      followUps: [
+        {
+          id: 'follow-up-1',
+          description: 'Inspect seals',
+          assignedToMemberId: 'member-3',
+          dueDate: '2026-03-03'
+        }
+      ]
+    });
   });
 });
