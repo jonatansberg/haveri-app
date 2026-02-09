@@ -7,6 +7,8 @@ const mockToErrorResponse = vi.hoisted(() => vi.fn());
 const mockSyncGlobalIncidentAnnouncement = vi.hoisted(() => vi.fn());
 const mockAcknowledgeIncidentEscalation = vi.hoisted(() => vi.fn());
 const mockGetIncidentDetail = vi.hoisted(() => vi.fn());
+const mockGetTeamsChatSettings = vi.hoisted(() => vi.fn());
+const mockArchiveTeamsIncidentChannel = vi.hoisted(() => vi.fn());
 const mockIncidentService = vi.hoisted(() => ({
   updateStatus: vi.fn(),
   changeSeverity: vi.fn(),
@@ -37,6 +39,11 @@ vi.mock('$lib/server/services/escalation-service', () => ({
 
 vi.mock('$lib/server/services/incident-queries', () => ({
   getIncidentDetail: mockGetIncidentDetail
+}));
+
+vi.mock('$lib/server/adapters/teams/chat-ops', () => ({
+  getTeamsChatSettings: mockGetTeamsChatSettings,
+  archiveTeamsIncidentChannel: mockArchiveTeamsIncidentChannel
 }));
 
 vi.mock('$lib/server/services/incident-service', () => ({
@@ -218,6 +225,17 @@ describe('incident action API routes', () => {
         }
       ]
     });
+    mockGetIncidentDetail.mockResolvedValue({
+      incident: {
+        chatPlatform: 'teams',
+        chatChannelRef: 'teams|team-1|channel-1'
+      }
+    });
+    mockGetTeamsChatSettings.mockResolvedValue({
+      globalIncidentChannelRef: 'teams|team-1|global-channel',
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: true
+    });
 
     const response = await closeIncident({
       params: { id: 'inc-6' },
@@ -241,6 +259,9 @@ describe('incident action API routes', () => {
           dueDate: null
         }
       ]
+    });
+    expect(mockArchiveTeamsIncidentChannel).toHaveBeenCalledWith({
+      channelRef: 'teams|team-1|channel-1'
     });
   });
 

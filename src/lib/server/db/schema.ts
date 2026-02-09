@@ -43,6 +43,7 @@ export const organizationChatSettings = pgTable(
     platform: text('platform').notNull(),
     globalIncidentChannelRef: text('global_incident_channel_ref').notNull(),
     autoCreateIncidentChannel: boolean('auto_create_incident_channel').notNull().default(true),
+    autoArchiveOnClose: boolean('auto_archive_on_close').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
   },

@@ -57,14 +57,21 @@ describe('teams chat-ops', () => {
 
   it('returns stored chat settings when present', async () => {
     mockDbSelect.mockReturnValueOnce(
-      selectChain([{ globalIncidentChannelRef: 'teams:global:configured', autoCreateIncidentChannel: false }])
+      selectChain([
+        {
+          globalIncidentChannelRef: 'teams:global:configured',
+          autoCreateIncidentChannel: false,
+          autoArchiveOnClose: true
+        }
+      ])
     );
 
     const settings = await getTeamsChatSettings('org-1');
 
     expect(settings).toEqual({
       globalIncidentChannelRef: 'teams:global:configured',
-      autoCreateIncidentChannel: false
+      autoCreateIncidentChannel: false,
+      autoArchiveOnClose: true
     });
   });
 
@@ -75,7 +82,8 @@ describe('teams chat-ops', () => {
 
     expect(settings).toEqual({
       globalIncidentChannelRef: 'teams:global:fallback',
-      autoCreateIncidentChannel: true
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: false
     });
   });
 

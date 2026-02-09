@@ -2,6 +2,10 @@ import { asc, eq } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { db } from '$lib/server/db/client';
+import {
+  archiveTeamsIncidentChannel,
+  getTeamsChatSettings
+} from '$lib/server/adapters/teams/chat-ops';
 import { members } from '$lib/server/db/schema';
 import { acknowledgeIncidentEscalation } from '$lib/server/services/escalation-service';
 import { updateFollowUpStatus } from '$lib/server/services/follow-up-service';
@@ -223,6 +227,14 @@ export const actions: Actions = {
       organizationId: locals.organizationId,
       incidentId: params.id
     });
+
+    const detail = await getIncidentDetail(locals.organizationId, params.id);
+    const chatSettings = await getTeamsChatSettings(locals.organizationId);
+    if (detail.incident.chatPlatform === 'teams' && chatSettings.autoArchiveOnClose) {
+      await archiveTeamsIncidentChannel({
+        channelRef: detail.incident.chatChannelRef
+      });
+    }
 
     return { ok: true };
   },

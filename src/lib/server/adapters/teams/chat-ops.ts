@@ -5,11 +5,16 @@ import { db } from '$lib/server/db/client';
 import { organizationChatSettings } from '$lib/server/db/schema';
 import {
   getTeamsGlobalIncidentChannel,
+  getTeamsGraphBaseUrlRoot,
   getTeamsIncidentChannelPrefix,
   getTeamsIncidentTeamId
 } from '$lib/server/services/env';
 import { ValidationError } from '$lib/server/services/errors';
-import { createTeamsGraphClient, isTeamsGraphConfigured } from './graph-client';
+import {
+  createTeamsGraphClient,
+  getTeamsGraphAccessToken,
+  isTeamsGraphConfigured
+} from './graph-client';
 
 const ADAPTIVE_CARD_CONTENT_TYPE = 'application/vnd.microsoft.card.adaptive';
 const ADAPTIVE_CARD_ATTACHMENT_ID = 'haveriIncidentCard';
@@ -41,6 +46,7 @@ interface GraphChatMessageAttachment {
 export interface TeamsChatSettings {
   globalIncidentChannelRef: string;
   autoCreateIncidentChannel: boolean;
+  autoArchiveOnClose: boolean;
 }
 
 export interface TeamsIncidentCardInput {
@@ -255,7 +261,8 @@ export async function getTeamsChatSettings(organizationId: string): Promise<Team
   const row = await db
     .select({
       globalIncidentChannelRef: organizationChatSettings.globalIncidentChannelRef,
-      autoCreateIncidentChannel: organizationChatSettings.autoCreateIncidentChannel
+      autoCreateIncidentChannel: organizationChatSettings.autoCreateIncidentChannel,
+      autoArchiveOnClose: organizationChatSettings.autoArchiveOnClose
     })
     .from(organizationChatSettings)
     .where(
@@ -273,7 +280,8 @@ export async function getTeamsChatSettings(organizationId: string): Promise<Team
 
   return {
     globalIncidentChannelRef: getTeamsGlobalIncidentChannel(),
-    autoCreateIncidentChannel: true
+    autoCreateIncidentChannel: true,
+    autoArchiveOnClose: false
   };
 }
 
@@ -419,5 +427,31 @@ export async function updateTeamsGlobalIncidentCard(input: {
       messageRef: buildMessageRef(message.teamId, message.channelId, replacement.messageId),
       channelRef: message.channelRef
     };
+  }
+}
+
+export async function archiveTeamsIncidentChannel(input: { channelRef: string }): Promise<void> {
+  if (!isTeamsGraphConfigured()) {
+    return;
+  }
+
+  const channel = parseChannelRef(input.channelRef);
+  const token = await getTeamsGraphAccessToken();
+  const response = await fetch(
+    `${getTeamsGraphBaseUrlRoot()}/v1.0/teams/${encodeURIComponent(channel.teamId)}/channels/${encodeURIComponent(channel.channelId)}/archive`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        shouldSetSpoSiteReadOnlyForMembers: false
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new ValidationError(`Unable to archive Teams channel (${response.status})`);
   }
 }

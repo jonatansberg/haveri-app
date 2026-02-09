@@ -77,7 +77,8 @@ describe('incident-workflow-service', () => {
 
     mockGetTeamsChatSettings.mockResolvedValue({
       globalIncidentChannelRef: 'teams:global:haveri',
-      autoCreateIncidentChannel: true
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: false
     });
     mockCreateTeamsIncidentChannel.mockResolvedValue({
       channelRef: 'teams:channel:incident-sev1-line-down',
@@ -192,7 +193,8 @@ describe('incident-workflow-service', () => {
     });
     mockGetTeamsChatSettings.mockResolvedValue({
       globalIncidentChannelRef: 'teams:global:haveri',
-      autoCreateIncidentChannel: true
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: false
     });
     mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
     mockUpdateTeamsGlobalIncidentCard.mockResolvedValue({
@@ -237,7 +239,8 @@ describe('incident-workflow-service', () => {
     });
     mockGetTeamsChatSettings.mockResolvedValue({
       globalIncidentChannelRef: 'teams:global:haveri',
-      autoCreateIncidentChannel: true
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: false
     });
     mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
     mockPostTeamsGlobalIncidentCard.mockResolvedValue({

@@ -95,7 +95,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Move follow-up creation into resolve flow (not only close), with assignee fields captured from structured input.
   **AC:** resolving with N actions creates N linked follow-ups and posts summary message to Teams.
 
-- [ ] **Close flow channel archive option**
+- [x] **Close flow channel archive option**
   Add org-configurable channel archive behavior when incident closes.
   **AC:** close archives channel when enabled; leaves channel open when disabled.
 
