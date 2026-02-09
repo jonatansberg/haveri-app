@@ -455,11 +455,15 @@ export const escalationPolicies = pgTable(
       .references(() => organizations.id, { onDelete: 'cascade' }),
     facilityId: uuid('facility_id').references(() => facilities.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    priority: integer('priority').notNull().default(1000),
     conditions: jsonb('conditions').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
   },
-  (table) => [unique().on(table.organizationId, table.name)]
+  (table) => [
+    unique().on(table.organizationId, table.name),
+    index('idx_escalation_policies_org_priority').on(table.organizationId, table.priority)
+  ]
 );
 
 export const escalationPolicySteps = pgTable(

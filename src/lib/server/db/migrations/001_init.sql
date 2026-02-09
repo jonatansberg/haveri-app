@@ -213,11 +213,15 @@ CREATE TABLE IF NOT EXISTS escalation_policies (
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   facility_id UUID REFERENCES facilities(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  priority INT NOT NULL DEFAULT 1000,
   conditions JSONB NOT NULL DEFAULT '{}'::JSONB,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (organization_id, name)
 );
+
+CREATE INDEX IF NOT EXISTS idx_escalation_policies_org_priority
+  ON escalation_policies (organization_id, priority);
 
 CREATE TABLE IF NOT EXISTS escalation_policy_steps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

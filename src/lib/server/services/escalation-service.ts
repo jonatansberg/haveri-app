@@ -184,6 +184,7 @@ export async function selectEscalationPolicyForIncident(input: {
   const policies = await db
     .select({
       id: escalationPolicies.id,
+      priority: escalationPolicies.priority,
       conditions: escalationPolicies.conditions
     })
     .from(escalationPolicies)
@@ -239,11 +240,17 @@ export async function selectEscalationPolicyForIncident(input: {
 
       return {
         id: policy.id,
+        priority: policy.priority,
         specificity
       };
     })
-    .filter((value): value is { id: string; specificity: number } => value !== null)
-    .sort((a, b) => b.specificity - a.specificity);
+    .filter((value): value is { id: string; priority: number; specificity: number } => value !== null)
+    .sort((a, b) => {
+      if (b.specificity !== a.specificity) {
+        return b.specificity - a.specificity;
+      }
+      return a.priority - b.priority;
+    });
 
   const matchingPolicy = matchingPolicies[0];
 
