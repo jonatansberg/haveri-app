@@ -30,12 +30,22 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE TABLE IF NOT EXISTS members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   role TEXT NOT NULL,
   contact_prefs JSONB NOT NULL DEFAULT '{}'::JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS team_members (
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (team_id, member_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_members_member ON team_members(member_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
 
 CREATE TABLE IF NOT EXISTS member_chat_identities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

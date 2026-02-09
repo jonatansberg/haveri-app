@@ -180,12 +180,32 @@ export const members = pgTable('members', {
   organizationId: uuid('organization_id')
     .notNull()
     .references(() => organizations.id, { onDelete: 'cascade' }),
-  teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   role: text('role').notNull(),
   contactPrefs: jsonb('contact_prefs').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
 });
+
+export const teamMembers = pgTable(
+  'team_members',
+  {
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
+  },
+  (table) => [
+    primaryKey({ columns: [table.teamId, table.memberId] }),
+    index('idx_team_members_member').on(table.memberId),
+    index('idx_team_members_team').on(table.teamId)
+  ]
+);
 
 export const memberChatIdentities = pgTable(
   'member_chat_identities',

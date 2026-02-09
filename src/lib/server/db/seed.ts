@@ -8,6 +8,7 @@ import {
   members,
   organizationChatSettings,
   organizations,
+  teamMembers,
   teams
 } from './schema';
 
@@ -52,20 +53,35 @@ async function seed(): Promise<void> {
     throw new Error('Failed to fetch seeded team');
   }
 
-  const existingMember = await db
+  let member = await db
     .select({ id: members.id })
     .from(members)
     .where(and(eq(members.organizationId, defaultOrgId), eq(members.name, 'Alex Rivera')))
-    .limit(1);
+    .limit(1)
+    .then((rows) => rows[0]);
 
-  if (!existingMember.length) {
-    await db.insert(members).values({
+  member ??= await db
+    .insert(members)
+    .values({
       organizationId: defaultOrgId,
-      teamId: team.id,
       name: 'Alex Rivera',
       role: 'supervisor'
-    });
+    })
+    .returning({ id: members.id })
+    .then((rows) => rows[0]);
+
+  if (!member) {
+    throw new Error('Failed to fetch seeded member');
   }
+
+  await db
+    .insert(teamMembers)
+    .values({
+      teamId: team.id,
+      memberId: member.id,
+      organizationId: defaultOrgId
+    })
+    .onConflictDoNothing();
 
   await db
     .insert(organizationChatSettings)
