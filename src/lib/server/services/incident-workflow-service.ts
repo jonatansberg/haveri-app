@@ -3,13 +3,9 @@ import { db } from '$lib/server/db/client';
 import { members } from '$lib/server/db/schema';
 import type { IncidentSeverity } from '$lib/shared/domain';
 import { scheduleEscalationForIncident } from '$lib/server/queue/scheduler';
-import {
-  buildTeamsIncidentCard,
-  createTeamsIncidentChannel,
-  getTeamsChatSettings,
-  postTeamsGlobalIncidentCard,
-  updateTeamsGlobalIncidentCard
-} from '$lib/server/adapters/teams/chat-ops';
+import type { ChatAdapter } from '$lib/server/adapters/chat/contract';
+import { getChatAdapter } from '$lib/server/adapters/chat/factory';
+import { getTeamsChatSettings } from '$lib/server/adapters/teams/chat-ops';
 import { getIncidentDetail } from './incident-queries';
 import { incidentService } from './incident-service';
 import { ValidationError } from './errors';
@@ -60,6 +56,7 @@ export interface DeclareIncidentWorkflowInput {
   tags?: string[];
   actorExternalId?: string | null;
   rawSourcePayload?: Record<string, unknown> | null;
+  chatAdapter?: ChatAdapter;
 }
 
 async function resolveMemberInOrg(organizationId: string, memberId: string): Promise<string | null> {
@@ -114,6 +111,34 @@ async function resolveCommsLead(input: {
   return resolveMemberInOrg(input.organizationId, input.commsLeadMemberId);
 }
 
+function buildIncidentCardFromDetail(
+  adapter: ChatAdapter,
+  detail: Awaited<ReturnType<typeof getIncidentDetail>>
+): Record<string, unknown> {
+  if (adapter.buildIncidentCard) {
+    return adapter.buildIncidentCard({
+      incidentId: detail.incident.id,
+      title: detail.incident.title,
+      severity: detail.incident.severity,
+      status: detail.incident.status,
+      facilityName: detail.incident.facilityName,
+      channelRef: detail.incident.chatChannelRef,
+      responsibleLead: detail.incident.responsibleLead,
+      commsLead: detail.incident.commsLead,
+      tags: detail.incident.tags
+    });
+  }
+
+  return {
+    incidentId: detail.incident.id,
+    title: detail.incident.title,
+    severity: detail.incident.severity,
+    status: detail.incident.status,
+    facilityName: detail.incident.facilityName,
+    channelRef: detail.incident.chatChannelRef
+  };
+}
+
 export async function declareIncidentWithWorkflow(
   input: DeclareIncidentWorkflowInput
 ): Promise<{ incidentId: string; channelRef: string; globalChannelRef: string | null }> {
@@ -142,12 +167,12 @@ export async function declareIncidentWithWorkflow(
   let globalChannelRef: string | null = null;
 
   if (input.chatPlatform === 'teams') {
+    const adapter = input.chatAdapter ?? getChatAdapter('teams');
     const settings = await getTeamsChatSettings(input.organizationId);
     globalChannelRef = settings.globalIncidentChannelRef;
 
     if (settings.autoCreateIncidentChannel) {
-      const channel = await createTeamsIncidentChannel({
-        incidentTitle: input.title,
+      const channel = await adapter.createChannel(input.title, [], {
         severity: input.severity
       });
       incidentChannelRef = channel.channelRef;
@@ -191,23 +216,11 @@ export async function declareIncidentWithWorkflow(
   });
 
   if (input.chatPlatform === 'teams' && globalChannelRef) {
+    const adapter = input.chatAdapter ?? getChatAdapter('teams');
     const detail = await getIncidentDetail(input.organizationId, incident.id);
-    const card = buildTeamsIncidentCard({
-      incidentId: detail.incident.id,
-      title: detail.incident.title,
-      severity: detail.incident.severity,
-      status: detail.incident.status,
-      facilityName: detail.incident.facilityName,
-      channelRef: detail.incident.chatChannelRef,
-      responsibleLead: detail.incident.responsibleLead,
-      commsLead: detail.incident.commsLead,
-      tags: detail.incident.tags
-    });
+    const card = buildIncidentCardFromDetail(adapter, detail);
 
-    const globalPost = await postTeamsGlobalIncidentCard({
-      channelRef: globalChannelRef,
-      card
-    });
+    const globalPost = await adapter.sendCard(globalChannelRef, card);
 
     await incidentService.setAnnouncementRefs({
       organizationId: input.organizationId,
@@ -236,6 +249,7 @@ export async function declareIncidentWithWorkflow(
 export async function syncGlobalIncidentAnnouncement(input: {
   organizationId: string;
   incidentId: string;
+  chatAdapter?: ChatAdapter;
 }): Promise<void> {
   const detail = await getIncidentDetail(input.organizationId, input.incidentId);
 
@@ -243,6 +257,7 @@ export async function syncGlobalIncidentAnnouncement(input: {
     return;
   }
 
+  const adapter = input.chatAdapter ?? getChatAdapter('teams');
   const settings = await getTeamsChatSettings(input.organizationId);
   const globalChannelRef = detail.incident.globalChannelRef ?? settings.globalIncidentChannelRef;
 
@@ -250,49 +265,24 @@ export async function syncGlobalIncidentAnnouncement(input: {
     return;
   }
 
-  const card = buildTeamsIncidentCard({
-    incidentId: detail.incident.id,
-    title: detail.incident.title,
-    severity: detail.incident.severity,
-    status: detail.incident.status,
-    facilityName: detail.incident.facilityName,
-    channelRef: detail.incident.chatChannelRef,
-    responsibleLead: detail.incident.responsibleLead,
-    commsLead: detail.incident.commsLead,
-    tags: detail.incident.tags
-  });
+  const card = buildIncidentCardFromDetail(adapter, detail);
 
-  if (detail.incident.globalMessageRef) {
-    const updated = await updateTeamsGlobalIncidentCard({
-      channelRef: globalChannelRef,
-      messageRef: detail.incident.globalMessageRef,
-      card
+  const posted = await adapter.sendCard(
+    globalChannelRef,
+    card,
+    detail.incident.globalMessageRef ?? undefined
+  );
+
+  if (
+    !detail.incident.globalChannelRef ||
+    detail.incident.globalMessageRef !== posted.messageRef ||
+    detail.incident.globalChannelRef !== posted.channelRef
+  ) {
+    await incidentService.setAnnouncementRefs({
+      organizationId: input.organizationId,
+      incidentId: input.incidentId,
+      globalChannelRef: posted.channelRef,
+      globalMessageRef: posted.messageRef
     });
-
-    if (
-      !detail.incident.globalChannelRef ||
-      detail.incident.globalMessageRef !== updated.messageRef ||
-      detail.incident.globalChannelRef !== updated.channelRef
-    ) {
-      await incidentService.setAnnouncementRefs({
-        organizationId: input.organizationId,
-        incidentId: input.incidentId,
-        globalChannelRef: updated.channelRef,
-        globalMessageRef: updated.messageRef
-      });
-    }
-    return;
   }
-
-  const posted = await postTeamsGlobalIncidentCard({
-    channelRef: globalChannelRef,
-    card
-  });
-
-  await incidentService.setAnnouncementRefs({
-    organizationId: input.organizationId,
-    incidentId: input.incidentId,
-    globalChannelRef: posted.channelRef,
-    globalMessageRef: posted.messageRef
-  });
 }

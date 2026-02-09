@@ -51,7 +51,7 @@ This document intentionally keeps the strongest parts of the current build and o
 
 ## 2) Chat Adapter Layer
 
-- [ ] **Platform-agnostic chat adapter contract**
+- [x] **Platform-agnostic chat adapter contract**
   Introduce a formal adapter interface and depend on it from core services.
   **AC:** incident workflow runs unchanged with mock adapter vs Teams adapter.
 

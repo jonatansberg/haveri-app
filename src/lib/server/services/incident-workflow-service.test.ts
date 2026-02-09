@@ -4,10 +4,18 @@ import { ValidationError } from './errors';
 const mockDbSelect = vi.hoisted(() => vi.fn());
 const mockScheduleEscalationForIncident = vi.hoisted(() => vi.fn());
 const mockGetTeamsChatSettings = vi.hoisted(() => vi.fn());
-const mockCreateTeamsIncidentChannel = vi.hoisted(() => vi.fn());
-const mockBuildTeamsIncidentCard = vi.hoisted(() => vi.fn());
-const mockPostTeamsGlobalIncidentCard = vi.hoisted(() => vi.fn());
-const mockUpdateTeamsGlobalIncidentCard = vi.hoisted(() => vi.fn());
+const mockGetChatAdapter = vi.hoisted(() => vi.fn());
+const mockChatAdapter = vi.hoisted(() => ({
+  onMessage: vi.fn(),
+  onCommand: vi.fn(),
+  createChannel: vi.fn(),
+  archiveChannel: vi.fn(),
+  sendMessage: vi.fn(),
+  sendCard: vi.fn(),
+  addMembers: vi.fn(),
+  resolveUser: vi.fn(),
+  buildIncidentCard: vi.fn()
+}));
 const mockGetIncidentDetail = vi.hoisted(() => vi.fn());
 const mockIncidentService = vi.hoisted(() => ({
   declareIncident: vi.fn(),
@@ -24,11 +32,11 @@ vi.mock('$lib/server/queue/scheduler', () => ({
 }));
 
 vi.mock('$lib/server/adapters/teams/chat-ops', () => ({
-  getTeamsChatSettings: mockGetTeamsChatSettings,
-  createTeamsIncidentChannel: mockCreateTeamsIncidentChannel,
-  buildTeamsIncidentCard: mockBuildTeamsIncidentCard,
-  postTeamsGlobalIncidentCard: mockPostTeamsGlobalIncidentCard,
-  updateTeamsGlobalIncidentCard: mockUpdateTeamsGlobalIncidentCard
+  getTeamsChatSettings: mockGetTeamsChatSettings
+}));
+
+vi.mock('$lib/server/adapters/chat/factory', () => ({
+  getChatAdapter: mockGetChatAdapter
 }));
 
 vi.mock('./incident-queries', () => ({
@@ -68,6 +76,7 @@ function selectChain(rows: unknown[]) {
 describe('incident-workflow-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetChatAdapter.mockReturnValue(mockChatAdapter);
   });
 
   it('declares a Teams incident with workflow roles and global announcement', async () => {
@@ -80,7 +89,7 @@ describe('incident-workflow-service', () => {
       autoCreateIncidentChannel: true,
       autoArchiveOnClose: false
     });
-    mockCreateTeamsIncidentChannel.mockResolvedValue({
+    mockChatAdapter.createChannel.mockResolvedValue({
       channelRef: 'teams:channel:incident-sev1-line-down',
       channelName: 'incident-sev1-line-down'
     });
@@ -98,8 +107,8 @@ describe('incident-workflow-service', () => {
         tags: ['line-down']
       }
     });
-    mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
-    mockPostTeamsGlobalIncidentCard.mockResolvedValue({
+    mockChatAdapter.buildIncidentCard.mockReturnValue({ type: 'card' });
+    mockChatAdapter.sendCard.mockResolvedValue({
       messageRef: 'teams|team-1|channel-1|message|msg-1',
       channelRef: 'teams|team-1|channel-1'
     });
@@ -121,6 +130,10 @@ describe('incident-workflow-service', () => {
       incidentId: 'inc-1',
       channelRef: 'teams:channel:incident-sev1-line-down',
       globalChannelRef: 'teams:global:haveri'
+    });
+    expect(mockGetChatAdapter).toHaveBeenCalledWith('teams');
+    expect(mockChatAdapter.createChannel).toHaveBeenCalledWith('Line stopped', [], {
+      severity: 'SEV1'
     });
     expect(mockIncidentService.declareIncident).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -160,6 +173,61 @@ describe('incident-workflow-service', () => {
     });
   });
 
+  it('uses an injected chat adapter without changing workflow behavior', async () => {
+    const injectedAdapter = {
+      ...mockChatAdapter,
+      createChannel: vi.fn().mockResolvedValue({
+        channelRef: 'teams:channel:incident-injected',
+        channelName: 'incident-injected'
+      }),
+      buildIncidentCard: vi.fn().mockReturnValue({ type: 'card' }),
+      sendCard: vi.fn().mockResolvedValue({
+        messageRef: 'teams|team-1|channel-9|message|msg-9',
+        channelRef: 'teams|team-1|channel-9'
+      })
+    };
+
+    mockDbSelect
+      .mockReturnValueOnce(selectChain([{ id: 'member-resp' }]))
+      .mockReturnValueOnce(selectChain([{ id: 'member-comms' }]));
+    mockGetTeamsChatSettings.mockResolvedValue({
+      globalIncidentChannelRef: 'teams:global:haveri',
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: false
+    });
+    mockIncidentService.declareIncident.mockResolvedValue({ id: 'inc-9' });
+    mockGetIncidentDetail.mockResolvedValue({
+      incident: {
+        id: 'inc-9',
+        title: 'Injected adapter incident',
+        severity: 'SEV2',
+        status: 'DECLARED',
+        facilityName: 'Plant North',
+        chatChannelRef: 'teams:channel:incident-injected',
+        responsibleLead: 'Alex Rivera',
+        commsLead: 'Sara Kim',
+        tags: []
+      }
+    });
+
+    await declareIncidentWithWorkflow({
+      organizationId: 'org-1',
+      title: 'Injected adapter incident',
+      severity: 'SEV2',
+      facilityId: 'facility-1',
+      chatPlatform: 'teams',
+      responsibleLeadMemberId: 'member-resp',
+      commsLeadMemberId: 'member-comms',
+      chatAdapter: injectedAdapter
+    });
+
+    expect(mockGetChatAdapter).not.toHaveBeenCalled();
+    expect(injectedAdapter.createChannel).toHaveBeenCalledWith('Injected adapter incident', [], {
+      severity: 'SEV2'
+    });
+    expect(injectedAdapter.sendCard).toHaveBeenCalled();
+  });
+
   it('throws when no responsible lead can be resolved', async () => {
     mockDbSelect.mockReturnValueOnce(selectChain([]));
 
@@ -196,8 +264,8 @@ describe('incident-workflow-service', () => {
       autoCreateIncidentChannel: true,
       autoArchiveOnClose: false
     });
-    mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
-    mockUpdateTeamsGlobalIncidentCard.mockResolvedValue({
+    mockChatAdapter.buildIncidentCard.mockReturnValue({ type: 'card' });
+    mockChatAdapter.sendCard.mockResolvedValue({
       messageRef: 'teams|team-1|channel-haveri|message|msg-77',
       channelRef: 'teams|team-1|channel-haveri'
     });
@@ -207,11 +275,12 @@ describe('incident-workflow-service', () => {
       incidentId: 'inc-77'
     });
 
-    expect(mockUpdateTeamsGlobalIncidentCard).toHaveBeenCalledWith({
-      channelRef: 'teams:global:haveri',
-      messageRef: 'teams:message:77',
-      card: { type: 'card' }
-    });
+    expect(mockGetChatAdapter).toHaveBeenCalledWith('teams');
+    expect(mockChatAdapter.sendCard).toHaveBeenCalledWith(
+      'teams:global:haveri',
+      { type: 'card' },
+      'teams:message:77'
+    );
     expect(mockIncidentService.setAnnouncementRefs).toHaveBeenCalledWith({
       organizationId: 'org-1',
       incidentId: 'inc-77',
@@ -242,8 +311,8 @@ describe('incident-workflow-service', () => {
       autoCreateIncidentChannel: true,
       autoArchiveOnClose: false
     });
-    mockBuildTeamsIncidentCard.mockReturnValue({ type: 'card' });
-    mockPostTeamsGlobalIncidentCard.mockResolvedValue({
+    mockChatAdapter.buildIncidentCard.mockReturnValue({ type: 'card' });
+    mockChatAdapter.sendCard.mockResolvedValue({
       messageRef: 'teams|team-1|channel-haveri|message|msg-88',
       channelRef: 'teams|team-1|channel-haveri'
     });
@@ -253,10 +322,12 @@ describe('incident-workflow-service', () => {
       incidentId: 'inc-88'
     });
 
-    expect(mockPostTeamsGlobalIncidentCard).toHaveBeenCalledWith({
-      channelRef: 'teams:global:haveri',
-      card: { type: 'card' }
-    });
+    expect(mockGetChatAdapter).toHaveBeenCalledWith('teams');
+    expect(mockChatAdapter.sendCard).toHaveBeenCalledWith(
+      'teams:global:haveri',
+      { type: 'card' },
+      undefined
+    );
     expect(mockIncidentService.setAnnouncementRefs).toHaveBeenCalledWith({
       organizationId: 'org-1',
       incidentId: 'inc-88',
@@ -289,7 +360,7 @@ describe('incident-workflow-service', () => {
     });
 
     expect(mockGetTeamsChatSettings).not.toHaveBeenCalled();
-    expect(mockUpdateTeamsGlobalIncidentCard).not.toHaveBeenCalled();
-    expect(mockPostTeamsGlobalIncidentCard).not.toHaveBeenCalled();
+    expect(mockGetChatAdapter).not.toHaveBeenCalled();
+    expect(mockChatAdapter.sendCard).not.toHaveBeenCalled();
   });
 });
