@@ -368,7 +368,18 @@ export async function createTeamsIncidentChannel(input: {
     'team-id': teamId
   };
 
-  const response = await graphClient.call(graphEndpoints.teams.channels.create, requestBody, pathParams);
+  // The Teams Graph SDK defaults to v1.0. Use beta so layoutType=chat is honored.
+  const response = await graphClient.call(
+    (
+      body: Parameters<typeof graphEndpoints.teams.channels.create>[0],
+      params?: Parameters<typeof graphEndpoints.teams.channels.create>[1]
+    ) => ({
+      ...graphEndpoints.teams.channels.create(body, params),
+      ver: 'beta'
+    }),
+    requestBody,
+    pathParams
+  );
 
   const channelId = extractResponseId(response);
 

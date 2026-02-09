@@ -124,6 +124,14 @@ describe('teams chat-ops', () => {
 
     expect(mockGraphClientCall).toHaveBeenCalledTimes(1);
     const createCall = mockGraphClientCall.mock.calls[0];
+    const endpointRequest = (createCall?.[0] as
+      | ((body: Record<string, unknown>, params?: Record<string, unknown>) => Record<string, unknown>)
+      | undefined)?.(createCall?.[1], createCall?.[2]);
+    expect(endpointRequest).toEqual(
+      expect.objectContaining({
+        ver: 'beta'
+      })
+    );
     expect(createCall?.[1]).toEqual(
       expect.objectContaining({
         layoutType: 'chat',

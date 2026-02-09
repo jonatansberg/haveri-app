@@ -55,6 +55,18 @@ describe('scheduleEscalationForIncident', () => {
 
     expect(result).toEqual({ scheduled: true });
     expect(mockQueueAdd).toHaveBeenCalledTimes(2);
+    expect(mockQueueAdd).toHaveBeenNthCalledWith(
+      1,
+      'run-step',
+      expect.objectContaining({
+        organizationId: 'org-1',
+        incidentId: 'inc-1',
+        stepOrder: 1
+      }),
+      expect.objectContaining({
+        jobId: 'inc-1-step-1'
+      })
+    );
   });
 
   it('records fallback escalation path when no policy matches', async () => {

@@ -91,7 +91,8 @@ export async function scheduleEscalationForIncident(input: {
       },
       {
         delay: Math.max(0, step.delayMinutes * 60_000),
-        jobId: `${input.incidentId}:${step.stepOrder}`
+        // BullMQ custom job IDs cannot include ":".
+        jobId: `${input.incidentId}-step-${step.stepOrder}`
       }
     );
   }
