@@ -250,15 +250,24 @@ export async function declareIncidentWithWorkflow(
       incidentId: incident.id,
       title: input.title
     });
-    const channel = await adapter.createChannel(channelName, [], {
-      severity: input.severity
-    });
-    incidentChannelRef = channel.channelRef;
+    try {
+      const channel = await adapter.createChannel(channelName, [], {
+        severity: input.severity
+      });
+      incidentChannelRef = channel.channelRef;
 
-    await db
-      .update(incidents)
-      .set({ chatChannelRef: channel.channelRef })
-      .where(and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, incident.id)));
+      await db
+        .update(incidents)
+        .set({ chatChannelRef: channel.channelRef })
+        .where(and(eq(incidents.organizationId, input.organizationId), eq(incidents.id, incident.id)));
+    } catch (error) {
+      console.warn('Failed to create Teams incident channel, using source channel', {
+        organizationId: input.organizationId,
+        incidentId: incident.id,
+        sourceChannelRef: incidentChannelRef,
+        error
+      });
+    }
   }
 
   await incidentService.addEvent({
@@ -281,30 +290,48 @@ export async function declareIncidentWithWorkflow(
 
   if (input.chatPlatform === 'teams') {
     const adapter = input.chatAdapter ?? getChatAdapter('teams');
-    const triageCard = await buildTriageCardForIncident({
-      organizationId: input.organizationId,
-      incidentId: incident.id,
-      facilityId: input.facilityId,
-      severity: input.severity,
-      initialAreaId: input.areaId ?? null,
-      initialDescription: input.description ?? null
-    });
-    await adapter.sendCard(incidentChannelRef, triageCard);
+    try {
+      const triageCard = await buildTriageCardForIncident({
+        organizationId: input.organizationId,
+        incidentId: incident.id,
+        facilityId: input.facilityId,
+        severity: input.severity,
+        initialAreaId: input.areaId ?? null,
+        initialDescription: input.description ?? null
+      });
+      await adapter.sendCard(incidentChannelRef, triageCard);
+    } catch (error) {
+      console.warn('Failed to send Teams triage card', {
+        organizationId: input.organizationId,
+        incidentId: incident.id,
+        channelRef: incidentChannelRef,
+        error
+      });
+    }
   }
 
   if (input.chatPlatform === 'teams' && globalChannelRef) {
     const adapter = input.chatAdapter ?? getChatAdapter('teams');
-    const detail = await getIncidentDetail(input.organizationId, incident.id);
-    const card = buildIncidentCardFromDetail(adapter, detail);
+    try {
+      const detail = await getIncidentDetail(input.organizationId, incident.id);
+      const card = buildIncidentCardFromDetail(adapter, detail);
 
-    const globalPost = await adapter.sendCard(globalChannelRef, card);
+      const globalPost = await adapter.sendCard(globalChannelRef, card);
 
-    await incidentService.setAnnouncementRefs({
-      organizationId: input.organizationId,
-      incidentId: incident.id,
-      globalChannelRef: globalPost.channelRef,
-      globalMessageRef: globalPost.messageRef
-    });
+      await incidentService.setAnnouncementRefs({
+        organizationId: input.organizationId,
+        incidentId: incident.id,
+        globalChannelRef: globalPost.channelRef,
+        globalMessageRef: globalPost.messageRef
+      });
+    } catch (error) {
+      console.warn('Failed to post Teams global incident announcement', {
+        organizationId: input.organizationId,
+        incidentId: incident.id,
+        globalChannelRef,
+        error
+      });
+    }
   }
 
   try {
@@ -353,23 +380,31 @@ export async function syncGlobalIncidentAnnouncement(input: {
   }
 
   const card = buildIncidentCardFromDetail(adapter, detail);
+  try {
+    const posted = await adapter.sendCard(
+      globalChannelRef,
+      card,
+      detail.incident.globalMessageRef ?? undefined
+    );
 
-  const posted = await adapter.sendCard(
-    globalChannelRef,
-    card,
-    detail.incident.globalMessageRef ?? undefined
-  );
-
-  if (
-    !detail.incident.globalChannelRef ||
-    detail.incident.globalMessageRef !== posted.messageRef ||
-    detail.incident.globalChannelRef !== posted.channelRef
-  ) {
-    await incidentService.setAnnouncementRefs({
+    if (
+      !detail.incident.globalChannelRef ||
+      detail.incident.globalMessageRef !== posted.messageRef ||
+      detail.incident.globalChannelRef !== posted.channelRef
+    ) {
+      await incidentService.setAnnouncementRefs({
+        organizationId: input.organizationId,
+        incidentId: input.incidentId,
+        globalChannelRef: posted.channelRef,
+        globalMessageRef: posted.messageRef
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to sync Teams global incident announcement', {
       organizationId: input.organizationId,
       incidentId: input.incidentId,
-      globalChannelRef: posted.channelRef,
-      globalMessageRef: posted.messageRef
+      globalChannelRef,
+      error
     });
   }
 }

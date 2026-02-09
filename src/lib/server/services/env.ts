@@ -56,6 +56,18 @@ export function getTeamsBotAppId(): string | null {
   return readEnv('TEAMS_BOT_APP_ID') ?? null;
 }
 
+export function getTeamsBotClientId(): string | null {
+  return getTeamsBotAppId() ?? getTeamsClientId();
+}
+
+export function getTeamsBotClientSecret(): string | null {
+  return readEnv('TEAMS_BOT_CLIENT_SECRET') ?? getTeamsClientSecret();
+}
+
+export function getTeamsBotServiceUrl(): string {
+  return readEnv('TEAMS_BOT_SERVICE_URL') ?? 'https://smba.trafficmanager.net/teams';
+}
+
 export function getTeamsClientSecret(): string | null {
   return readEnv('TEAMS_CLIENT_SECRET') ?? null;
 }

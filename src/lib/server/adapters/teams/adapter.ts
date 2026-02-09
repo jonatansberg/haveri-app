@@ -274,7 +274,23 @@ export async function handleTeamsInbound(
       incidentId,
       initialSummary: command.summaryText
     });
-    await adapter.sendCard(payload.channelId, card);
+    try {
+      await adapter.sendCard(payload.channelId, card);
+    } catch (error) {
+      console.warn('Failed to send Teams resolution card', {
+        organizationId,
+        incidentId,
+        channelRef: payload.channelId,
+        sourceEventId: payload.id,
+        error
+      });
+
+      return {
+        ok: false,
+        action: 'resolution_card_failed',
+        incidentId
+      };
+    }
 
     await incidentService.addEvent({
       event: {

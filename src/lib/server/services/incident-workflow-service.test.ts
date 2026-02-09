@@ -250,6 +250,60 @@ describe('incident-workflow-service', () => {
     expect(injectedAdapter.sendCard).toHaveBeenCalled();
   });
 
+  it('falls back to source channel when Teams channel creation fails', async () => {
+    mockDbSelect
+      .mockReturnValueOnce(selectChain([{ id: 'member-resp' }]))
+      .mockReturnValueOnce(selectChain([]))
+      .mockReturnValueOnce(selectChain([]))
+      .mockReturnValueOnce(selectChain([]));
+
+    mockGetTeamsChatSettings.mockResolvedValue({
+      globalIncidentChannelRef: 'teams:global:haveri',
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: false
+    });
+    mockIncidentService.declareIncident.mockResolvedValue({ id: 'inc-fallback' });
+    mockGetIncidentDetail.mockResolvedValue({
+      incident: {
+        id: 'inc-fallback',
+        title: 'Source channel fallback',
+        severity: 'SEV2',
+        status: 'DECLARED',
+        facilityName: 'Plant North',
+        chatChannelRef: 'teams|team-source|19:source-channel@thread.tacv2',
+        responsibleLead: 'Alex Rivera',
+        commsLead: null,
+        tags: []
+      }
+    });
+    mockChatAdapter.createChannel.mockRejectedValue(new Error('Request failed with status code 403'));
+    mockChatAdapter.sendCard.mockResolvedValue({
+      messageRef: 'teams|team-1|channel-1|message|msg-1',
+      channelRef: 'teams|team-1|channel-1'
+    });
+
+    const result = await declareIncidentWithWorkflow({
+      organizationId: 'org-1',
+      title: 'Source channel fallback',
+      severity: 'SEV2',
+      declaredByMemberId: 'member-resp',
+      facilityId: 'facility-1',
+      chatPlatform: 'teams',
+      sourceChannelRef: 'teams|team-source|19:source-channel@thread.tacv2'
+    });
+
+    expect(result).toEqual({
+      incidentId: 'inc-fallback',
+      channelRef: 'teams|team-source|19:source-channel@thread.tacv2',
+      globalChannelRef: 'teams:global:haveri'
+    });
+    expect(mockChatAdapter.createChannel).toHaveBeenCalledTimes(1);
+    expect(mockChatAdapter.sendCard).toHaveBeenCalledWith(
+      'teams|team-source|19:source-channel@thread.tacv2',
+      expect.any(Object)
+    );
+  });
+
   it('throws when no responsible lead can be resolved', async () => {
     mockDbSelect.mockReturnValueOnce(selectChain([]));
 
@@ -356,6 +410,41 @@ describe('incident-workflow-service', () => {
       globalChannelRef: 'teams|team-1|channel-haveri',
       globalMessageRef: 'teams|team-1|channel-haveri|message|msg-88'
     });
+  });
+
+  it('swallows Teams global announcement errors during sync', async () => {
+    mockGetIncidentDetail.mockResolvedValue({
+      incident: {
+        id: 'inc-sync-fail',
+        title: 'Global sync failure',
+        severity: 'SEV2',
+        status: 'INVESTIGATING',
+        facilityName: 'Plant North',
+        chatChannelRef: 'teams:channel:hydraulics',
+        responsibleLead: 'Alex Rivera',
+        commsLead: null,
+        tags: [],
+        chatPlatform: 'teams',
+        globalChannelRef: null,
+        globalMessageRef: null
+      }
+    });
+    mockGetTeamsChatSettings.mockResolvedValue({
+      globalIncidentChannelRef: 'teams:global:haveri',
+      autoCreateIncidentChannel: true,
+      autoArchiveOnClose: false
+    });
+    mockChatAdapter.buildIncidentCard.mockReturnValue({ type: 'card' });
+    mockChatAdapter.sendCard.mockRejectedValue(new Error('Request failed with status code 403'));
+
+    await expect(
+      syncGlobalIncidentAnnouncement({
+        organizationId: 'org-1',
+        incidentId: 'inc-sync-fail'
+      })
+    ).resolves.toBeUndefined();
+
+    expect(mockIncidentService.setAnnouncementRefs).not.toHaveBeenCalled();
   });
 
   it('skips sync when incident is not on Teams platform', async () => {

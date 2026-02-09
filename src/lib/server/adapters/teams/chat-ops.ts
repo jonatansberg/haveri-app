@@ -16,6 +16,11 @@ import {
   getTeamsGraphAccessToken,
   isTeamsGraphConfigured
 } from './graph-client';
+import {
+  isTeamsBotMessagingConfigured,
+  postTeamsChannelCardViaBot,
+  updateTeamsChannelCardViaBot
+} from './bot-client';
 
 const ADAPTIVE_CARD_CONTENT_TYPE = 'application/vnd.microsoft.card.adaptive';
 const ADAPTIVE_CARD_ATTACHMENT_ID = 'haveriIncidentCard';
@@ -27,6 +32,7 @@ interface TeamsChannelLocator {
 }
 
 interface TeamsMessageLocator extends TeamsChannelLocator {
+  conversationId: string | null;
   messageId: string;
   messageRef: string;
 }
@@ -74,7 +80,16 @@ function buildChannelRef(teamId: string, channelId: string): string {
   return `teams|${teamId}|${channelId}`;
 }
 
-function buildMessageRef(teamId: string, channelId: string, messageId: string): string {
+function buildMessageRef(
+  teamId: string,
+  channelId: string,
+  messageId: string,
+  options?: { conversationId?: string | null }
+): string {
+  if (options?.conversationId) {
+    return `${buildChannelRef(teamId, channelId)}|conversation|${encodeURIComponent(options.conversationId)}|message|${encodeURIComponent(messageId)}`;
+  }
+
   return `${buildChannelRef(teamId, channelId)}|message|${encodeURIComponent(messageId)}`;
 }
 
@@ -161,11 +176,31 @@ function parseChannelRef(rawRef: string): TeamsChannelLocator {
 }
 
 function parseMessageRef(messageRef: string, channelRef: string): TeamsMessageLocator {
+  const canonicalWithConversation = /^teams\|([^|]+)\|([^|]+)\|conversation\|([^|]+)\|message\|(.+)$/.exec(
+    messageRef
+  );
+  if (
+    canonicalWithConversation?.[1] &&
+    canonicalWithConversation[2] &&
+    canonicalWithConversation[3] &&
+    canonicalWithConversation[4]
+  ) {
+    return {
+      teamId: canonicalWithConversation[1],
+      channelId: canonicalWithConversation[2],
+      conversationId: decodeURIComponent(canonicalWithConversation[3]),
+      messageId: decodeURIComponent(canonicalWithConversation[4]),
+      channelRef: buildChannelRef(canonicalWithConversation[1], canonicalWithConversation[2]),
+      messageRef
+    };
+  }
+
   const canonical = /^teams\|([^|]+)\|([^|]+)\|message\|(.+)$/.exec(messageRef);
   if (canonical?.[1] && canonical[2] && canonical[3]) {
     return {
       teamId: canonical[1],
       channelId: canonical[2],
+      conversationId: null,
       messageId: decodeURIComponent(canonical[3]),
       channelRef: buildChannelRef(canonical[1], canonical[2]),
       messageRef
@@ -178,6 +213,7 @@ function parseMessageRef(messageRef: string, channelRef: string): TeamsMessageLo
     return {
       teamId: channel.teamId,
       channelId: channel.channelId,
+      conversationId: null,
       messageId: legacyMessage[1],
       channelRef: channel.channelRef,
       messageRef: buildMessageRef(channel.teamId, channel.channelId, legacyMessage[1])
@@ -188,6 +224,7 @@ function parseMessageRef(messageRef: string, channelRef: string): TeamsMessageLo
   return {
     teamId: channel.teamId,
     channelId: channel.channelId,
+    conversationId: null,
     messageId: messageRef,
     channelRef: channel.channelRef,
     messageRef: buildMessageRef(channel.teamId, channel.channelId, messageRef)
@@ -373,6 +410,34 @@ export async function postTeamsGlobalIncidentCard(input: {
   channelRef: string;
   card: Record<string, unknown>;
 }): Promise<{ messageRef: string; channelRef: string }> {
+  if (isTeamsBotMessagingConfigured()) {
+    const channel = parseChannelRef(input.channelRef);
+
+    try {
+      const posted = await postTeamsChannelCardViaBot({
+        teamId: channel.teamId,
+        channelId: channel.channelId,
+        card: input.card
+      });
+
+      return {
+        messageRef: buildMessageRef(channel.teamId, channel.channelId, posted.activityId, {
+          conversationId: posted.conversationId
+        }),
+        channelRef: channel.channelRef
+      };
+    } catch (error) {
+      console.warn('Teams bot card post failed, attempting Graph fallback', {
+        channelRef: input.channelRef,
+        error
+      });
+
+      if (!isTeamsGraphConfigured()) {
+        throw error;
+      }
+    }
+  }
+
   if (!isTeamsGraphConfigured()) {
     const messageRef = `teams:message:${Date.now()}:${Math.round(Math.random() * 10000)}`;
     return { messageRef, channelRef: input.channelRef };
@@ -396,6 +461,56 @@ export async function updateTeamsGlobalIncidentCard(input: {
   messageRef: string;
   card: Record<string, unknown>;
 }): Promise<{ messageRef: string; channelRef: string }> {
+  if (isTeamsBotMessagingConfigured()) {
+    const message = parseMessageRef(input.messageRef, input.channelRef);
+
+    if (message.conversationId) {
+      try {
+        await updateTeamsChannelCardViaBot({
+          conversationId: message.conversationId,
+          activityId: message.messageId,
+          card: input.card
+        });
+
+        return {
+          messageRef: message.messageRef,
+          channelRef: message.channelRef
+        };
+      } catch (error) {
+        console.warn('Teams bot message update failed, posting replacement incident card', {
+          channelRef: message.channelRef,
+          messageRef: message.messageRef,
+          error
+        });
+      }
+    }
+
+    try {
+      const replacement = await postTeamsChannelCardViaBot({
+        teamId: message.teamId,
+        channelId: message.channelId,
+        card: input.card
+      });
+
+      return {
+        messageRef: buildMessageRef(message.teamId, message.channelId, replacement.activityId, {
+          conversationId: replacement.conversationId
+        }),
+        channelRef: message.channelRef
+      };
+    } catch (error) {
+      console.warn('Teams bot message replacement failed, attempting Graph fallback', {
+        channelRef: message.channelRef,
+        messageRef: message.messageRef,
+        error
+      });
+
+      if (!isTeamsGraphConfigured()) {
+        throw error;
+      }
+    }
+  }
+
   if (!isTeamsGraphConfigured()) {
     return {
       messageRef: input.messageRef,

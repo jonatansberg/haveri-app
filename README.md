@@ -95,4 +95,5 @@ Teams packaging scripts:
 - `POST /api/chat/teams/webhook` accepts both:
   - Existing simplified payloads (`{ id, type, text, channelId, userId, ... }`)
   - Native Teams/Bot activity payloads (`from`, `conversation`, `channelData`, etc.)
-- Incident global announcement updates attempt in-place message patch first. If Graph app permissions block patch, Haveri posts a replacement card and persists the new message ref.
+- Non-message bot activities (for example `conversationUpdate`) are acknowledged and ignored to prevent webhook retries.
+- Incident/global card delivery uses Bot Framework proactive messaging first (works without user interaction), with Graph fallback where available.

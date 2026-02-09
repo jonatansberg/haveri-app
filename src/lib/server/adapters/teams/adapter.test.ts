@@ -304,6 +304,30 @@ describe('teams adapter', () => {
     });
   });
 
+  it('returns graceful response when /resolve card posting fails', async () => {
+    mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
+      memberId: 'member-actor',
+      name: 'Actor',
+      wasProvisioned: false
+    });
+    mockChatAdapter.sendCard.mockRejectedValueOnce(new Error('Request failed with status code 403'));
+
+    const result = await handleTeamsInbound('org-1', {
+      id: 'msg-2b-failed',
+      type: 'message',
+      text: '/resolve inc-1 Cleared obstruction and restarted',
+      channelId: 'teams:incident:1',
+      userId: 'teams-user-1'
+    });
+
+    expect(mockIncidentService.addEvent).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      action: 'resolution_card_failed',
+      incidentId: 'inc-1'
+    });
+  });
+
   it('handles /ack command and syncs global announcement', async () => {
     mockResolveOrProvisionMemberByPlatformIdentity.mockResolvedValue({
       memberId: 'member-actor',

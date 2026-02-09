@@ -71,6 +71,9 @@ fly secrets set \
   TEAMS_TENANT_ID="<tenant-guid>" \
   TEAMS_CLIENT_ID="<client-guid>" \
   TEAMS_CLIENT_SECRET="<client-secret>" \
+  TEAMS_BOT_APP_ID="<bot-app-guid>" \
+  TEAMS_BOT_CLIENT_SECRET="<bot-client-secret-if-different>" \
+  TEAMS_BOT_SERVICE_URL="https://smba.trafficmanager.net/teams" \
   TEAMS_INCIDENT_TEAM_ID="<team-guid>" \
   TEAMS_GLOBAL_INCIDENT_CHANNEL="teams|<team-guid>|<channel-id>"
 ```

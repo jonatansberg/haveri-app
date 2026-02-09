@@ -27,7 +27,7 @@ function toChecklist(config: ReturnType<typeof buildTeamsAppPackageConfigFromEnv
     `1. Ensure Entra app registration exists for bot id \`${config.botId}\`.`,
     '2. Ensure Bot Channel Registration is connected to that app registration.',
     `3. Set the messaging endpoint to \`${webhookUrl}\`.`,
-    '4. Grant Graph app permissions used by Haveri (Channel.Create, ChannelMessage.Send, ChannelMessage.ReadWrite.All) and grant admin consent.',
+    '4. Grant Graph permissions used for channel lifecycle operations (for example create/archive channel, add channel members) and grant consent.',
     '',
     '## Haveri Setup',
     '1. Set Teams env vars in `.env` (see `.env.example`).',
@@ -50,7 +50,7 @@ function toChecklist(config: ReturnType<typeof buildTeamsAppPackageConfigFromEnv
     '',
     '## Debugging',
     '- If channel creation fails: verify TEAMS_INCIDENT_TEAM_ID and Graph Channel.Create permission.',
-    '- If global card post/update fails: verify channel ref format and ChannelMessage permissions.',
+    '- If global card post/update fails: verify TEAMS_BOT_APP_ID / bot secret / bot service URL and that the bot is installed in the target team/channel.',
     '- If commands are ignored: ensure webhook receives Teams activities and bot is installed in team scope.'
   ].join('\n');
 }

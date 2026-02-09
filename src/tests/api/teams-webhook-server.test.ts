@@ -1,13 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHmac } from 'node:crypto';
 
 const mockReadJson = vi.hoisted(() => vi.fn());
 const mockHandleTeamsInbound = vi.hoisted(() => vi.fn());
 const mockGetDefaultOrgId = vi.hoisted(() => vi.fn());
-const mockGetTeamsBotAppId = vi.hoisted(() => vi.fn());
+const mockGetTeamsBotClientId = vi.hoisted(() => vi.fn());
 const mockGetTeamsWebhookSecret = vi.hoisted(() => vi.fn());
 const mockGetIdempotentResponse = vi.hoisted(() => vi.fn());
 const mockStoreIdempotentResponse = vi.hoisted(() => vi.fn());
+const mockJwtVerify = vi.hoisted(() => vi.fn());
+const mockCreateRemoteJWKSet = vi.hoisted(() => vi.fn(() => Symbol('jwks')));
 
 vi.mock('$lib/server/api/http', async () => {
   const actual = await vi.importActual<typeof import('$lib/server/api/http')>('$lib/server/api/http');
@@ -23,7 +25,7 @@ vi.mock('$lib/server/adapters/teams/adapter', () => ({
 
 vi.mock('$lib/server/services/env', () => ({
   getDefaultOrgId: mockGetDefaultOrgId,
-  getTeamsBotAppId: mockGetTeamsBotAppId,
+  getTeamsBotClientId: mockGetTeamsBotClientId,
   getTeamsWebhookSecret: mockGetTeamsWebhookSecret
 }));
 
@@ -32,16 +34,38 @@ vi.mock('$lib/server/services/idempotency-service', () => ({
   storeIdempotentResponse: mockStoreIdempotentResponse
 }));
 
+vi.mock('jose', () => ({
+  jwtVerify: mockJwtVerify,
+  createRemoteJWKSet: mockCreateRemoteJWKSet
+}));
+
 import { POST } from '../../routes/api/chat/teams/webhook/+server';
 
 describe('POST /api/chat/teams/webhook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDefaultOrgId.mockReturnValue('org-default');
-    mockGetTeamsBotAppId.mockReturnValue(null);
+    mockGetTeamsBotClientId.mockReturnValue(null);
     mockGetTeamsWebhookSecret.mockReturnValue(null);
     mockGetIdempotentResponse.mockResolvedValue(null);
     mockHandleTeamsInbound.mockResolvedValue({ ok: true, action: 'handled' });
+    mockJwtVerify.mockResolvedValue({ payload: {} });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            issuer: 'https://api.botframework.com',
+            jwks_uri: 'https://login.botframework.com/v1/.well-known/keys'
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      )
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('returns 401 when webhook secret is configured and header is missing', async () => {
@@ -66,7 +90,7 @@ describe('POST /api/chat/teams/webhook', () => {
   });
 
   it('returns 401 when bot app id is configured and auth bearer token is missing', async () => {
-    mockGetTeamsBotAppId.mockReturnValue('bot-app-id');
+    mockGetTeamsBotClientId.mockReturnValue('bot-app-id');
     mockReadJson.mockResolvedValue({
       id: 'evt-auth-token',
       type: 'message',
@@ -94,14 +118,8 @@ describe('POST /api/chat/teams/webhook', () => {
       channelId: '19:channel@thread.tacv2',
       userId: 'user-1'
     };
-    const tokenPayload = {
-      aud: 'bot-app-id',
-      exp: Math.floor(Date.now() / 1000) + 600,
-      iss: 'https://api.botframework.com'
-    };
-    const encodedPayload = Buffer.from(JSON.stringify(tokenPayload)).toString('base64url');
-    const fakeToken = `header.${encodedPayload}.signature`;
-    mockGetTeamsBotAppId.mockReturnValue('bot-app-id');
+    const fakeToken = 'header.payload.signature';
+    mockGetTeamsBotClientId.mockReturnValue('bot-app-id');
     mockReadJson.mockResolvedValue(payload);
 
     const response = await POST({
@@ -113,6 +131,7 @@ describe('POST /api/chat/teams/webhook', () => {
 
     expect(response.status).toBe(200);
     expect(mockHandleTeamsInbound).toHaveBeenCalledTimes(1);
+    expect(mockJwtVerify).toHaveBeenCalledTimes(1);
   });
 
   it('accepts webhook requests signed with the shared secret', async () => {
@@ -252,6 +271,54 @@ describe('POST /api/chat/teams/webhook', () => {
             contentUrl: 'https://files.example/report.pdf'
           }
         ]
+      })
+    );
+  });
+
+  it('ignores non-message Teams activity payloads', async () => {
+    mockReadJson.mockResolvedValue({
+      id: 'evt-3b',
+      type: 'conversationUpdate',
+      from: {
+        id: '28:app:bot-id'
+      },
+      conversation: {
+        id: '19:conversation@thread.tacv2'
+      },
+      channelData: {
+        channel: {
+          id: '19:channel@thread.tacv2'
+        }
+      }
+    });
+
+    const response = await POST({
+      request: new Request('http://localhost/api/chat/teams/webhook', { method: 'POST' })
+    } as Parameters<typeof POST>[0]);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      action: 'ignored',
+      reason: 'unsupported_activity_type',
+      activityType: 'conversationUpdate'
+    });
+    expect(mockHandleTeamsInbound).not.toHaveBeenCalled();
+    expect(mockStoreIdempotentResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-default',
+        platform: 'teams',
+        idempotencyKey: 'evt-3b'
+      })
+    );
+    expect(mockStoreIdempotentResponse.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        responsePayload: {
+          ok: true,
+          action: 'ignored',
+          reason: 'unsupported_activity_type',
+          activityType: 'conversationUpdate'
+        }
       })
     );
   });

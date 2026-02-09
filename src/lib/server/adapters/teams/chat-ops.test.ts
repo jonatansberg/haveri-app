@@ -7,6 +7,9 @@ const mockGetTeamsIncidentTeamId = vi.hoisted(() => vi.fn());
 const mockCreateTeamsGraphClient = vi.hoisted(() => vi.fn());
 const mockIsTeamsGraphConfigured = vi.hoisted(() => vi.fn());
 const mockGraphClientCall = vi.hoisted(() => vi.fn());
+const mockIsTeamsBotMessagingConfigured = vi.hoisted(() => vi.fn());
+const mockPostTeamsChannelCardViaBot = vi.hoisted(() => vi.fn());
+const mockUpdateTeamsChannelCardViaBot = vi.hoisted(() => vi.fn());
 
 vi.mock('$lib/server/db/client', () => ({
   db: { select: mockDbSelect }
@@ -21,6 +24,12 @@ vi.mock('$lib/server/services/env', () => ({
 vi.mock('./graph-client', () => ({
   createTeamsGraphClient: mockCreateTeamsGraphClient,
   isTeamsGraphConfigured: mockIsTeamsGraphConfigured
+}));
+
+vi.mock('./bot-client', () => ({
+  isTeamsBotMessagingConfigured: mockIsTeamsBotMessagingConfigured,
+  postTeamsChannelCardViaBot: mockPostTeamsChannelCardViaBot,
+  updateTeamsChannelCardViaBot: mockUpdateTeamsChannelCardViaBot
 }));
 
 import {
@@ -53,6 +62,7 @@ describe('teams chat-ops', () => {
     mockGetTeamsIncidentTeamId.mockReturnValue('team-1');
     mockCreateTeamsGraphClient.mockReturnValue({ call: mockGraphClientCall });
     mockIsTeamsGraphConfigured.mockReturnValue(false);
+    mockIsTeamsBotMessagingConfigured.mockReturnValue(false);
   });
 
   it('returns stored chat settings when present', async () => {
@@ -179,6 +189,30 @@ describe('teams chat-ops', () => {
     });
   });
 
+  it('posts adaptive cards via bot connector when configured', async () => {
+    mockIsTeamsBotMessagingConfigured.mockReturnValue(true);
+    mockPostTeamsChannelCardViaBot.mockResolvedValue({
+      conversationId: 'conv-1',
+      activityId: 'msg-1',
+      serviceUrl: 'https://smba.trafficmanager.net/teams'
+    });
+
+    const posted = await postTeamsGlobalIncidentCard({
+      channelRef: 'team-1/19:global-channel@thread.tacv2',
+      card: { type: 'AdaptiveCard', body: [] }
+    });
+
+    expect(mockPostTeamsChannelCardViaBot).toHaveBeenCalledWith({
+      teamId: 'team-1',
+      channelId: '19:global-channel@thread.tacv2',
+      card: { type: 'AdaptiveCard', body: [] }
+    });
+    expect(posted).toEqual({
+      channelRef: 'teams|team-1|19:global-channel@thread.tacv2',
+      messageRef: 'teams|team-1|19:global-channel@thread.tacv2|conversation|conv-1|message|msg-1'
+    });
+  });
+
   it('posts adaptive cards via graph when channel ref is already canonical', async () => {
     mockIsTeamsGraphConfigured.mockReturnValue(true);
     mockGraphClientCall.mockResolvedValueOnce({ id: 'msg-2' });
@@ -235,6 +269,27 @@ describe('teams chat-ops', () => {
     expect(updated).toEqual({
       channelRef: 'teams|team-1|19:global-channel@thread.tacv2',
       messageRef: 'teams|team-1|19:global-channel@thread.tacv2|message|msg-77'
+    });
+  });
+
+  it('updates adaptive cards via bot connector when message ref includes conversation id', async () => {
+    mockIsTeamsBotMessagingConfigured.mockReturnValue(true);
+    mockUpdateTeamsChannelCardViaBot.mockResolvedValue(undefined);
+
+    const updated = await updateTeamsGlobalIncidentCard({
+      channelRef: 'teams|team-1|19:global-channel@thread.tacv2',
+      messageRef: 'teams|team-1|19:global-channel@thread.tacv2|conversation|conv-77|message|msg-77',
+      card: { type: 'AdaptiveCard', body: [] }
+    });
+
+    expect(mockUpdateTeamsChannelCardViaBot).toHaveBeenCalledWith({
+      conversationId: 'conv-77',
+      activityId: 'msg-77',
+      card: { type: 'AdaptiveCard', body: [] }
+    });
+    expect(updated).toEqual({
+      channelRef: 'teams|team-1|19:global-channel@thread.tacv2',
+      messageRef: 'teams|team-1|19:global-channel@thread.tacv2|conversation|conv-77|message|msg-77'
     });
   });
 

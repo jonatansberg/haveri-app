@@ -11,7 +11,10 @@ Set runtime values in `.env`:
   - `teams|<teamId>|<channelId>`
   - `<teamId>/<channelId>`
   - `<channelId>` (uses `TEAMS_INCIDENT_TEAM_ID`)
-- `TEAMS_TENANT_ID`, `TEAMS_CLIENT_ID`, `TEAMS_CLIENT_SECRET`: Graph auth for channel/card operations.
+- `TEAMS_TENANT_ID`, `TEAMS_CLIENT_ID`, `TEAMS_CLIENT_SECRET`: Graph auth for channel lifecycle operations (channel create/member management/archive).
+- `TEAMS_BOT_APP_ID`: Bot App ID used for webhook token audience validation and proactive bot messaging.
+- `TEAMS_BOT_CLIENT_SECRET` (optional): Bot secret override. Falls back to `TEAMS_CLIENT_SECRET`.
+- `TEAMS_BOT_SERVICE_URL` (optional): Bot Connector service URL for proactive posts. Default: `https://smba.trafficmanager.net/teams`.
 
 Set manifest-generation values in `.env.teams-package` (copy from `.env.teams-package.example`):
 

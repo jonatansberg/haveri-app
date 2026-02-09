@@ -1,10 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { readJson, toErrorResponse } from '$lib/server/api/http';
 import { handleTeamsInbound } from '$lib/server/adapters/teams/adapter';
 import type { TeamsInboundMessage } from '$lib/server/adapters/teams/adapter';
-import { getDefaultOrgId, getTeamsBotAppId, getTeamsWebhookSecret } from '$lib/server/services/env';
+import { getDefaultOrgId, getTeamsBotClientId, getTeamsWebhookSecret } from '$lib/server/services/env';
 import { ValidationError } from '$lib/server/services/errors';
 import {
   getIdempotentResponse,
@@ -35,7 +36,7 @@ const teamsPayloadSchema = z.object({
 const teamsActivityPayloadSchema = z
   .object({
     id: z.string().min(1),
-    type: z.literal('message'),
+    type: z.string().min(1),
     text: z.string().optional(),
     timestamp: z.string().optional(),
     from: z
@@ -81,6 +82,19 @@ const teamsActivityPayloadSchema = z
 const teamsWebhookPayloadSchema = z.union([teamsPayloadSchema, teamsActivityPayloadSchema]);
 type LegacyTeamsWebhookPayload = z.infer<typeof teamsPayloadSchema>;
 type TeamsActivityWebhookPayload = z.infer<typeof teamsActivityPayloadSchema>;
+
+interface BotOpenIdConfiguration {
+  issuer: string;
+  jwks_uri: string;
+}
+
+const BOT_FRAMEWORK_OPENID_CONFIGURATION_URL =
+  'https://login.botframework.com/v1/.well-known/openidconfiguration';
+const BOT_OPENID_CONFIGURATION_CACHE_TTL_MS = 60 * 60 * 1000;
+
+let cachedBotOpenIdConfiguration: { value: BotOpenIdConfiguration; expiresAt: number } | null = null;
+let cachedBotJwksUrl: string | null = null;
+let cachedBotJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
 interface WebhookRequestLogContext {
   requestId: string | null;
@@ -210,46 +224,85 @@ function verifyWebhookSignature(input: {
   return timingSafeEqual(Buffer.from(normalized), Buffer.from(expected));
 }
 
-function decodeBase64Url(value: string): string | null {
-  try {
-    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
-    return Buffer.from(padded, 'base64').toString('utf8');
-  } catch {
-    return null;
-  }
+function normalizeUrl(value: string): string {
+  return value.replace(/\/+$/, '');
 }
 
-function verifyBotBearerToken(authHeader: string | null, expectedAudience: string): boolean {
-  if (!authHeader?.startsWith('Bearer ')) {
+async function getBotOpenIdConfiguration(): Promise<BotOpenIdConfiguration> {
+  if (
+    cachedBotOpenIdConfiguration &&
+    cachedBotOpenIdConfiguration.expiresAt > Date.now()
+  ) {
+    return cachedBotOpenIdConfiguration.value;
+  }
+
+  const response = await fetch(BOT_FRAMEWORK_OPENID_CONFIGURATION_URL);
+  const payload = (await response.json()) as Partial<BotOpenIdConfiguration>;
+  const issuer = typeof payload.issuer === 'string' ? payload.issuer : null;
+  const jwksUri = typeof payload.jwks_uri === 'string' ? payload.jwks_uri : null;
+
+  if (!response.ok || !issuer || !jwksUri) {
+    throw new Error(`Unable to resolve Bot Framework OpenID configuration (${response.status})`);
+  }
+
+  const configuration: BotOpenIdConfiguration = {
+    issuer,
+    jwks_uri: jwksUri
+  };
+  cachedBotOpenIdConfiguration = {
+    value: configuration,
+    expiresAt: Date.now() + BOT_OPENID_CONFIGURATION_CACHE_TTL_MS
+  };
+  return configuration;
+}
+
+function extractActivityServiceUrl(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  return typeof (payload as Record<string, unknown>)['serviceUrl'] === 'string'
+    ? ((payload as Record<string, unknown>)['serviceUrl'] as string)
+    : null;
+}
+
+async function verifyBotBearerToken(input: {
+  authHeader: string | null;
+  expectedAudience: string;
+  expectedServiceUrl?: string | null;
+}): Promise<boolean> {
+  if (!input.authHeader?.startsWith('Bearer ')) {
     return false;
   }
 
-  const token = authHeader.slice('Bearer '.length).trim();
-  const parts = token.split('.');
-  if (parts.length !== 3 || !parts[1]) {
-    return false;
-  }
-
-  const payloadJson = decodeBase64Url(parts[1]);
-  if (!payloadJson) {
+  const token = input.authHeader.slice('Bearer '.length).trim();
+  if (!token) {
     return false;
   }
 
   try {
-    const payload = JSON.parse(payloadJson) as {
-      aud?: string;
-      exp?: number;
-      iss?: string;
-    };
-    if (payload.aud !== expectedAudience) {
+    const openIdConfiguration = await getBotOpenIdConfiguration();
+    if (!cachedBotJwks || cachedBotJwksUrl !== openIdConfiguration.jwks_uri) {
+      cachedBotJwks = createRemoteJWKSet(new URL(openIdConfiguration.jwks_uri));
+      cachedBotJwksUrl = openIdConfiguration.jwks_uri;
+    }
+
+    if (!cachedBotJwks) {
       return false;
     }
-    if (typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now()) {
-      return false;
-    }
-    if (typeof payload.iss !== 'string' || payload.iss.length === 0) {
-      return false;
+
+    const verified = await jwtVerify(token, cachedBotJwks, {
+      audience: input.expectedAudience,
+      issuer: openIdConfiguration.issuer,
+      algorithms: ['RS256']
+    });
+
+    if (input.expectedServiceUrl) {
+      const tokenServiceUrl =
+        typeof verified.payload['serviceurl'] === 'string' ? verified.payload['serviceurl'] : null;
+      if (tokenServiceUrl && normalizeUrl(tokenServiceUrl) !== normalizeUrl(input.expectedServiceUrl)) {
+        return false;
+      }
     }
 
     return true;
@@ -265,6 +318,12 @@ function isLegacyTeamsWebhookPayload(
     Object.prototype.hasOwnProperty.call(payload, 'userId') &&
     typeof (payload as Record<string, unknown>)['userId'] === 'string'
   );
+}
+
+function shouldIgnoreActivityPayload(
+  payload: LegacyTeamsWebhookPayload | TeamsActivityWebhookPayload
+): payload is TeamsActivityWebhookPayload {
+  return !isLegacyTeamsWebhookPayload(payload) && payload.type !== 'message';
 }
 
 function stripTeamsMentions(text: string): string {
@@ -318,24 +377,28 @@ function toTeamsInbound(
 export const POST: RequestHandler = async (event) => {
   const orgId = event.request.headers.get('x-org-id') ?? getDefaultOrgId();
   const context = getRequestLogContext(event, orgId);
-  const configuredBotAppId = getTeamsBotAppId();
+  const configuredBotAppId = getTeamsBotClientId();
   const configuredWebhookSecret = getTeamsWebhookSecret();
   const authorizationHeader = event.request.headers.get('authorization');
   const providedWebhookSignature = event.request.headers.get('x-haveri-webhook-signature');
   const providedWebhookSecret = event.request.headers.get('x-haveri-webhook-secret');
 
   try {
+    const rawPayload = await readJson<unknown>(event.request);
+
     if (
       configuredBotAppId &&
-      !verifyBotBearerToken(authorizationHeader, configuredBotAppId)
+      !(await verifyBotBearerToken({
+        authHeader: authorizationHeader,
+        expectedAudience: configuredBotAppId,
+        expectedServiceUrl: extractActivityServiceUrl(rawPayload)
+      }))
     ) {
       logWebhookEvent('warn', 'Teams webhook rejected due to invalid bot authorization token', {
         ...context
       });
       return json({ error: 'Unauthorized webhook request' }, { status: 401 });
     }
-
-    const rawPayload = await readJson<unknown>(event.request);
 
     if (configuredWebhookSecret) {
       const hasValidSignature = providedWebhookSignature
@@ -361,6 +424,38 @@ export const POST: RequestHandler = async (event) => {
     });
 
     const payload = teamsWebhookPayloadSchema.parse(rawPayload);
+    if (shouldIgnoreActivityPayload(payload)) {
+      const existing = await getIdempotentResponse(orgId, 'teams', payload.id);
+      if (existing) {
+        logWebhookEvent('info', 'Teams webhook idempotent cache hit', {
+          ...context,
+          inboundId: payload.id
+        });
+        return json(existing);
+      }
+
+      const ignoredResponse = {
+        ok: true,
+        action: 'ignored',
+        reason: 'unsupported_activity_type',
+        activityType: payload.type
+      };
+      await storeIdempotentResponse({
+        organizationId: orgId,
+        platform: 'teams',
+        idempotencyKey: payload.id,
+        responsePayload: ignoredResponse
+      });
+
+      logWebhookEvent('info', 'Teams webhook ignored non-message activity', {
+        ...context,
+        inboundId: payload.id,
+        activityType: payload.type
+      });
+
+      return json(ignoredResponse);
+    }
+
     const inbound = toTeamsInbound(payload);
 
     const existing = await getIdempotentResponse(orgId, 'teams', inbound.id);
