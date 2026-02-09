@@ -79,3 +79,7 @@ export function getBlobStorageRoot(): string {
 export function getTeamsDirectMessageSenderUserId(): string | null {
   return readEnv('TEAMS_DM_SENDER_USER_ID') ?? null;
 }
+
+export function getPlausibleDomain(): string | null {
+  return readEnv('PLAUSIBLE_DOMAIN') ?? null;
+}

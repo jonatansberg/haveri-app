@@ -17,6 +17,13 @@
 
 <svelte:head>
   <title>Haveri</title>
+  {#if data.plausibleDomain}
+    <script
+      defer
+      data-domain={data.plausibleDomain}
+      src="https://plausible.io/js/script.js"
+    ></script>
+  {/if}
 </svelte:head>
 
 <div class="relative min-h-screen">
@@ -33,6 +40,19 @@
           <Button href="/followups" variant="ghost">Follow-ups</Button>
           <Button href="/settings" variant="ghost">Settings</Button>
           <Button variant="outline" onclick={signOut}>Sign out</Button>
+        </nav>
+      </div>
+      <Separator />
+    </header>
+  {:else}
+    <header class="border-b border-border/80 bg-background/95">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
+        <a href="/landing" class="font-display text-2xl text-slate-950">Haveri</a>
+        <nav class="flex items-center gap-2">
+          <Button href="/about" variant="ghost">About</Button>
+          <Button href="/blog" variant="ghost">Blog</Button>
+          <Button href="/contact" variant="ghost">Contact</Button>
+          <Button href="/login" variant="outline">Sign in</Button>
         </nav>
       </div>
       <Separator />

@@ -54,6 +54,7 @@ const reservedTopLevelSegments = new Set([
   'incidents',
   'followups',
   'settings',
+  'landing',
   'about',
   'contact',
   'blog'

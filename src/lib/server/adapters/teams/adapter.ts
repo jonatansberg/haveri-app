@@ -8,6 +8,7 @@ import { acknowledgeIncidentEscalation } from '$lib/server/services/escalation-s
 import { findIncidentByChannel } from '$lib/server/services/incident-queries';
 import { persistIncidentAttachments } from '$lib/server/services/incident-attachment-service';
 import { incidentService } from '$lib/server/services/incident-service';
+import { logLatencyMetric, startLatencyTimer } from '$lib/server/services/latency-metrics';
 import {
   declareIncidentWithWorkflow,
   syncGlobalIncidentAnnouncement
@@ -135,6 +136,7 @@ export async function handleTeamsInbound(
       : null;
 
   if (submissionAction === 'triage_submit') {
+    const startedAt = startLatencyTimer();
     const explicitIncidentId =
       typeof payload.submission?.['incidentId'] === 'string' ? payload.submission['incidentId'] : null;
     const incidentId = await resolveCommandIncidentId({
@@ -164,6 +166,15 @@ export async function handleTeamsInbound(
     await syncGlobalIncidentAnnouncement({
       organizationId,
       incidentId
+    });
+
+    logLatencyMetric({
+      metric: 'triage_submission',
+      startedAt,
+      context: {
+        organizationId,
+        incidentId
+      }
     });
 
     return {
@@ -425,6 +436,7 @@ export async function handleTeamsInbound(
     };
   }
 
+  const messageCaptureStartedAt = startLatencyTimer();
   let normalizedAttachments: Record<string, unknown>[] = (payload.attachments ?? []).map(
     (attachment) => ({
       name: attachment.name,
@@ -499,6 +511,16 @@ export async function handleTeamsInbound(
       // Ignore acknowledgement errors for regular incident chat messages.
     }
   }
+
+  logLatencyMetric({
+    metric: 'message_capture',
+    startedAt: messageCaptureStartedAt,
+    context: {
+      organizationId,
+      incidentId: activeIncident.id,
+      sourceEventId: payload.id
+    }
+  });
 
   return {
     ok: true,

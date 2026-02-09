@@ -9,6 +9,7 @@ import { getChatAdapter } from '$lib/server/adapters/chat/factory';
 import { getTeamsChatSettings } from '$lib/server/adapters/teams/chat-ops';
 import { getIncidentDetail } from './incident-queries';
 import { incidentService } from './incident-service';
+import { logLatencyMetric, startLatencyTimer } from './latency-metrics';
 import { ValidationError } from './errors';
 
 export const staticIncidentWorkflow = {
@@ -192,6 +193,7 @@ async function buildTriageCardForIncident(input: {
 export async function declareIncidentWithWorkflow(
   input: DeclareIncidentWorkflowInput
 ): Promise<{ incidentId: string; channelRef: string; globalChannelRef: string | null }> {
+  const startedAt = startLatencyTimer();
   const responsibleLeadMemberId = await resolveResponsibleLead({
     organizationId: input.organizationId,
     ...(input.responsibleLeadMemberId !== undefined
@@ -313,6 +315,16 @@ export async function declareIncidentWithWorkflow(
   } catch (error) {
     console.error('Failed to schedule escalation from workflow declaration', error);
   }
+
+  logLatencyMetric({
+    metric: 'incident_declaration_workflow',
+    startedAt,
+    context: {
+      organizationId: input.organizationId,
+      incidentId: incident.id,
+      chatPlatform: input.chatPlatform
+    }
+  });
 
   return {
     incidentId: incident.id,

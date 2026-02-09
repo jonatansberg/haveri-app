@@ -162,14 +162,14 @@ This document intentionally keeps the strongest parts of the current build and o
 
 ## 7) Marketing Site (P1 Scope Gap)
 
-- [ ] **P1 marketing delivery not present in this codebase**
+- [x] **P1 marketing delivery not present in this codebase**
   Landing/about/contact/blog, static generation targets, analytics wiring, and form capture remain outstanding.
   **AC:** deliver P1 marketing pages with form submission + privacy-friendly analytics + social metadata.
   **Downstream (P2/P3):** docs/changelog/page IA should be chosen now to avoid URL/content migrations later.
 
 ## 8) Non-Functional P1
 
-- [ ] **Latency SLO measurement**
+- [x] **Latency SLO measurement**
   Instrument and document declaration, triage-submit, and message-capture timings.
   **AC:** baseline report captured under normal load.
 

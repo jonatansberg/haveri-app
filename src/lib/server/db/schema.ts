@@ -565,6 +565,22 @@ export const inboundIdempotency = pgTable(
   (table) => [unique().on(table.organizationId, table.platform, table.idempotencyKey)]
 );
 
+export const marketingLeads = pgTable(
+  'marketing_leads',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    leadType: text('lead_type').notNull(),
+    name: text('name'),
+    email: text('email').notNull(),
+    company: text('company'),
+    role: text('role'),
+    teamSize: text('team_size'),
+    message: text('message'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
+  },
+  (table) => [index('idx_marketing_leads_type_created').on(table.leadType, table.createdAt)]
+);
+
 export const schemaMigrations = pgTable('schema_migrations', {
   version: text('version').primaryKey(),
   appliedAt: timestamp('applied_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow()
