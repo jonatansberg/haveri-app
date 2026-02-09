@@ -2,7 +2,7 @@ import { asc, eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { db } from '$lib/server/db/client';
-import { facilities, members } from '$lib/server/db/schema';
+import { areas, facilities, members } from '$lib/server/db/schema';
 import { declareIncidentWithWorkflow } from '$lib/server/services/incident-workflow-service';
 import { listIncidents } from '$lib/server/services/incident-queries';
 import { incidentSeverities } from '$lib/shared/domain';
@@ -16,14 +16,36 @@ const declareSchema = z.object({
   commsLeadMemberId: z.string().uuid().optional().nullable()
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
-  const [incidents, facilityList, memberList] = await Promise.all([
-    listIncidents(locals.organizationId),
+export const load: PageServerLoad = async ({ locals, url }) => {
+  const status = url.searchParams.getAll('status').filter((value) => value.length > 0);
+  const severity = url.searchParams.getAll('severity').filter((value) => value.length > 0);
+  const facilityId = url.searchParams.get('facilityId') ?? undefined;
+  const areaId = url.searchParams.get('areaId') ?? undefined;
+  const dateFrom = url.searchParams.get('dateFrom') ?? undefined;
+  const dateTo = url.searchParams.get('dateTo') ?? undefined;
+
+  const [incidents, facilityList, areaList, memberList] = await Promise.all([
+    listIncidents({
+      organizationId: locals.organizationId,
+      filters: {
+        ...(status.length > 0 ? { status } : {}),
+        ...(severity.length > 0 ? { severity } : {}),
+        ...(facilityId ? { facilityId } : {}),
+        ...(areaId ? { areaId } : {}),
+        ...(dateFrom ? { dateFrom } : {}),
+        ...(dateTo ? { dateTo } : {})
+      }
+    }),
     db
       .select({ id: facilities.id, name: facilities.name })
       .from(facilities)
       .where(eq(facilities.organizationId, locals.organizationId))
       .orderBy(asc(facilities.name)),
+    db
+      .select({ id: areas.id, name: areas.name })
+      .from(areas)
+      .where(eq(areas.organizationId, locals.organizationId))
+      .orderBy(asc(areas.name)),
     db
       .select({ id: members.id, name: members.name, role: members.role })
       .from(members)
@@ -34,7 +56,16 @@ export const load: PageServerLoad = async ({ locals }) => {
   return {
     incidents,
     facilities: facilityList,
-    members: memberList
+    areas: areaList,
+    members: memberList,
+    filters: {
+      status,
+      severity,
+      facilityId: facilityId ?? '',
+      areaId: areaId ?? '',
+      dateFrom: dateFrom ?? '',
+      dateTo: dateTo ?? ''
+    }
   };
 };
 

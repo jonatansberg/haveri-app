@@ -15,12 +15,19 @@
   export let form: ActionData | null = null;
 
   const severities = ['SEV1', 'SEV2', 'SEV3'] as const;
+  const statuses = ['DECLARED', 'INVESTIGATING', 'MITIGATED', 'RESOLVED', 'CLOSED'] as const;
 
   let title = '';
   let declareSeverity: (typeof severities)[number] = 'SEV2';
   let facilityId = data.facilities[0]?.id ?? '';
   let assignedToMemberId = data.members[0]?.id ?? '';
   let commsLeadMemberId = '';
+  let filterStatus = data.filters.status[0] ?? '';
+  let filterSeverity = data.filters.severity[0] ?? '';
+  let filterFacilityId = data.filters.facilityId;
+  let filterAreaId = data.filters.areaId;
+  let filterDateFrom = data.filters.dateFrom;
+  let filterDateTo = data.filters.dateTo;
 
   function memberLabel(memberId: string): string {
     const member = data.members.find((candidate) => candidate.id === memberId);
@@ -152,6 +159,57 @@
           <Alert.Description>Declare the first incident using the form above.</Alert.Description>
         </Alert.Root>
       {:else}
+        <form method="GET" class="mb-4 grid gap-3 rounded-lg border border-warm-300/80 bg-warm-100/40 p-3 lg:grid-cols-6">
+          <div class="grid gap-1">
+            <Label for="filter-status">Status</Label>
+            <select id="filter-status" name="status" bind:value={filterStatus} class="border-input bg-background rounded-md border px-2 py-2 text-sm">
+              <option value="">All</option>
+              {#each statuses as status}
+                <option value={status}>{status}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="grid gap-1">
+            <Label for="filter-severity">Severity</Label>
+            <select id="filter-severity" name="severity" bind:value={filterSeverity} class="border-input bg-background rounded-md border px-2 py-2 text-sm">
+              <option value="">All</option>
+              {#each severities as severity}
+                <option value={severity}>{severity}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="grid gap-1">
+            <Label for="filter-facility">Facility</Label>
+            <select id="filter-facility" name="facilityId" bind:value={filterFacilityId} class="border-input bg-background rounded-md border px-2 py-2 text-sm">
+              <option value="">All</option>
+              {#each data.facilities as facility}
+                <option value={facility.id}>{facility.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="grid gap-1">
+            <Label for="filter-area">Area</Label>
+            <select id="filter-area" name="areaId" bind:value={filterAreaId} class="border-input bg-background rounded-md border px-2 py-2 text-sm">
+              <option value="">All</option>
+              {#each data.areas as area}
+                <option value={area.id}>{area.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="grid gap-1">
+            <Label for="filter-date-from">From</Label>
+            <Input id="filter-date-from" name="dateFrom" type="date" bind:value={filterDateFrom} />
+          </div>
+          <div class="grid gap-1">
+            <Label for="filter-date-to">To</Label>
+            <Input id="filter-date-to" name="dateTo" type="date" bind:value={filterDateTo} />
+          </div>
+          <div class="lg:col-span-6 flex flex-wrap gap-2">
+            <Button type="submit" variant="secondary">Apply filters</Button>
+            <Button href="/" variant="outline">Clear</Button>
+          </div>
+        </form>
+
         <div class="overflow-x-auto rounded-lg border border-warm-300/80">
           <Table.Root>
             <Table.Header>

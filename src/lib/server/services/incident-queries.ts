@@ -1,4 +1,4 @@
-import { aliasedTable, and, asc, desc, eq } from 'drizzle-orm';
+import { aliasedTable, and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db/client';
 import {
   areas,
@@ -12,7 +12,19 @@ import {
 } from '$lib/server/db/schema';
 import { NotFoundError } from './errors';
 
-export async function listIncidents(organizationId: string): Promise<
+export interface IncidentListFilters {
+  status?: string[];
+  severity?: string[];
+  facilityId?: string;
+  areaId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export async function listIncidents(input: {
+  organizationId: string;
+  filters?: IncidentListFilters;
+}): Promise<
   {
     id: string;
     title: string;
@@ -25,6 +37,30 @@ export async function listIncidents(organizationId: string): Promise<
     commsLead: string | null;
   }[]
 > {
+  const filters = input.filters ?? {};
+  const predicates = [eq(incidents.organizationId, input.organizationId)];
+  if (filters.status && filters.status.length > 0) {
+    predicates.push(inArray(incidentCurrentState.status, filters.status as ('DECLARED' | 'INVESTIGATING' | 'MITIGATED' | 'RESOLVED' | 'CLOSED')[]));
+  }
+  if (filters.severity && filters.severity.length > 0) {
+    predicates.push(inArray(incidentCurrentState.severity, filters.severity as ('SEV1' | 'SEV2' | 'SEV3')[]));
+  }
+  if (filters.facilityId) {
+    predicates.push(eq(incidents.facilityId, filters.facilityId));
+  }
+  if (filters.areaId) {
+    predicates.push(eq(incidents.areaId, filters.areaId));
+  }
+  if (filters.dateFrom) {
+    predicates.push(gte(incidents.declaredAt, `${filters.dateFrom}T00:00:00.000Z`));
+  }
+  if (filters.dateTo) {
+    predicates.push(lte(incidents.declaredAt, `${filters.dateTo}T23:59:59.999Z`));
+  }
+
+  const openSort = sql<number>`CASE WHEN ${incidentCurrentState.status} IN ('DECLARED', 'INVESTIGATING', 'MITIGATED') THEN 0 ELSE 1 END`;
+  const severitySort = sql<number>`CASE ${incidentCurrentState.severity} WHEN 'SEV1' THEN 0 WHEN 'SEV2' THEN 1 ELSE 2 END`;
+
   const responsibleMember = aliasedTable(members, 'responsible_member');
   const commsMember = aliasedTable(members, 'comms_member');
 
@@ -52,8 +88,8 @@ export async function listIncidents(organizationId: string): Promise<
     .leftJoin(areas, eq(areas.id, incidents.areaId))
     .leftJoin(responsibleMember, eq(responsibleMember.id, incidentCurrentState.assignedToMemberId))
     .leftJoin(commsMember, eq(commsMember.id, incidents.commsLeadMemberId))
-    .where(eq(incidents.organizationId, organizationId))
-    .orderBy(desc(incidents.declaredAt));
+    .where(and(...predicates))
+    .orderBy(asc(openSort), asc(severitySort), desc(incidents.declaredAt));
 
   return rows;
 }

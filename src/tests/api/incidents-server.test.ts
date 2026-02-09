@@ -52,6 +52,7 @@ describe('POST /api/incidents', () => {
 
     const response = await GET({
       request: new Request('http://localhost/api/incidents'),
+      url: new URL('http://localhost/api/incidents'),
       locals: { organizationId: 'org-1' }
     } as Parameters<typeof GET>[0]);
 
@@ -62,7 +63,37 @@ describe('POST /api/incidents', () => {
     expect(body.incidents).toHaveLength(1);
     expect(body.incidents[0]?.id).toBe('inc-1');
     expect(body.incidents[0]?.title).toBe('Conveyor down');
-    expect(mockListIncidents).toHaveBeenCalledWith('org-1');
+    expect(mockListIncidents).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      filters: {}
+    });
+  });
+
+  it('passes list filters from query string to incident query service', async () => {
+    mockListIncidents.mockResolvedValue([]);
+
+    const response = await GET({
+      request: new Request(
+        'http://localhost/api/incidents?status=DECLARED&severity=SEV1&facilityId=11111111-1111-4111-8111-111111111111&areaId=22222222-2222-4222-8222-222222222222&dateFrom=2026-01-01&dateTo=2026-01-31'
+      ),
+      url: new URL(
+        'http://localhost/api/incidents?status=DECLARED&severity=SEV1&facilityId=11111111-1111-4111-8111-111111111111&areaId=22222222-2222-4222-8222-222222222222&dateFrom=2026-01-01&dateTo=2026-01-31'
+      ),
+      locals: { organizationId: 'org-1' }
+    } as Parameters<typeof GET>[0]);
+
+    expect(response.status).toBe(200);
+    expect(mockListIncidents).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      filters: {
+        status: ['DECLARED'],
+        severity: ['SEV1'],
+        facilityId: '11111111-1111-4111-8111-111111111111',
+        areaId: '22222222-2222-4222-8222-222222222222',
+        dateFrom: '2026-01-01',
+        dateTo: '2026-01-31'
+      }
+    });
   });
 
   it('declares incidents through workflow service when payload is valid', async () => {

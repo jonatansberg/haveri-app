@@ -143,7 +143,7 @@ This document intentionally keeps the strongest parts of the current build and o
 
 ## 6) Web Dashboard
 
-- [ ] **Incident list filters + default ordering**
+- [x] **Incident list filters + default ordering**
   Add status/severity/facility/area/date filters and default open-by-severity ordering.
   **AC:** list behavior matches PRD filter/sort expectations.
 

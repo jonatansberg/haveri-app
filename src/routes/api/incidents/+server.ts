@@ -24,7 +24,26 @@ export const GET: RequestHandler = async (event) => {
   requireUser(event);
 
   try {
-    const incidents = await listIncidents(event.locals.organizationId);
+    const status = event.url.searchParams.getAll('status').filter((value) => value.length > 0);
+    const severity = event.url.searchParams
+      .getAll('severity')
+      .filter((value) => value.length > 0);
+    const facilityId = event.url.searchParams.get('facilityId') ?? undefined;
+    const areaId = event.url.searchParams.get('areaId') ?? undefined;
+    const dateFrom = event.url.searchParams.get('dateFrom') ?? undefined;
+    const dateTo = event.url.searchParams.get('dateTo') ?? undefined;
+
+    const incidents = await listIncidents({
+      organizationId: event.locals.organizationId,
+      filters: {
+        ...(status.length > 0 ? { status } : {}),
+        ...(severity.length > 0 ? { severity } : {}),
+        ...(facilityId ? { facilityId } : {}),
+        ...(areaId ? { areaId } : {}),
+        ...(dateFrom ? { dateFrom } : {}),
+        ...(dateTo ? { dateTo } : {})
+      }
+    });
     return json({ incidents });
   } catch (error) {
     return toErrorResponse(error);
