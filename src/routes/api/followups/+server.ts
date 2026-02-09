@@ -16,9 +16,23 @@ export const GET: RequestHandler = async (event) => {
 
   try {
     const incidentId = event.url.searchParams.get('incidentId');
+    const status = event.url.searchParams.get('status');
+    const assignedToMemberId = event.url.searchParams.get('assignedToMemberId');
+    const facilityId = event.url.searchParams.get('facilityId');
+    const overdue = event.url.searchParams.get('overdue');
     const organizationId = getOrganizationId(event);
+    const statusFilter = status && followUpStatuses.includes(status as (typeof followUpStatuses)[number]) ? (status as (typeof followUpStatuses)[number]) : undefined;
     const followUps = await listFollowUps(
-      incidentId ? { organizationId, incidentId } : { organizationId }
+      incidentId || statusFilter || assignedToMemberId || facilityId || overdue
+        ? {
+            organizationId,
+            ...(incidentId ? { incidentId } : {}),
+            ...(statusFilter ? { status: statusFilter } : {}),
+            ...(assignedToMemberId ? { assignedToMemberId } : {}),
+            ...(facilityId ? { facilityId } : {}),
+            ...(overdue === 'true' ? { overdue: true } : {})
+          }
+        : { organizationId }
     );
 
     return json({ followUps });

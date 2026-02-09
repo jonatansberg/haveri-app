@@ -136,7 +136,7 @@ This document intentionally keeps the strongest parts of the current build and o
   Add reminder scheduling for D-1, due date, and overdue milestones.
   **AC:** reminders fire at configured times; overdue flags visible.
 
-- [ ] **Follow-up dashboard filters**
+- [x] **Follow-up dashboard filters**
   Provide status/assignee/facility/overdue filtering and default overdue-first sorting.
   **AC:** filter combinations return correct result sets.
   **Downstream (P2/P3):** keep follow-up schema extensible for webhook/external work-order IDs.
