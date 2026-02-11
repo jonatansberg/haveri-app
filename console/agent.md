@@ -57,9 +57,9 @@ Track implementation decisions, current progress, verification status, and next 
 - Last full verify run: PASS (`check`, `lint`, `test`) after auth UX + Better Auth baseURL/origin fixes.
 - Last full verify run: PASS (`check`, `lint`, `test`) after Tailwind/shadcn UI migration and palette integration.
 - Last full verify run: PASS (`check`, `lint`, `test`) after dependency refresh (`zod@4`, `vite@7`, `vitest@4`).
-- Last coverage run: PASS (`npm run test:coverage`) with thresholds enforced in `vitest.config.ts` for incident/chat workflow modules.
-- Last migration run: PASS (`npm run db:migrate`) applying `001_init.sql` and `002_incident_workflow_channels.sql`.
-- Last seed run: PASS (`npm run db:seed`) with `Seed complete`.
+- Last coverage run: PASS (`pnpm --filter @haveri/console test:coverage`) with thresholds enforced in `vitest.config.ts` for incident/chat workflow modules.
+- Last migration run: PASS (`pnpm db:migrate`) applying `001_init.sql` and `002_incident_workflow_channels.sql`.
+- Last seed run: PASS (`pnpm db:seed`) with `Seed complete`.
 - Last production build run: PASS (`node --env-file .env ./node_modules/vite/bin/vite.js build`).
 
 ## Remaining

@@ -9,7 +9,7 @@ Validation command:
 ```bash
 DATABASE_URL="postgres://..." \\
 AZURE_STORAGE_REGION="westeurope" \\
-npm run ops:check-residency
+pnpm ops:check-residency
 ```
 
 ## Backup and Recovery
@@ -21,7 +21,7 @@ DATABASE_URL="postgres://..." ./src/scripts/ops/backup-postgres.sh
 ## Follow-up Reminder Job
 Daily reminder execution for assigned follow-ups (D-1, due date, D+1):
 ```bash
-npm run ops:followup-reminders
+pnpm ops:followup-reminders
 ```
 
 ### Restore drill

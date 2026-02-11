@@ -1,8 +1,8 @@
 # Operations Guide
 
 ## Services
-- Web/API process (SvelteKit): `npm run dev`
-- Escalation worker (BullMQ): `npm run worker`
+- Web/API process (SvelteKit): `pnpm dev`
+- Escalation worker (BullMQ): `pnpm worker`
 
 ## Queues
 - Queue name: `incident-escalation`
@@ -24,4 +24,4 @@
 - Webhook route accepts both simplified and native Teams activity payloads; both normalize to a single internal event envelope before idempotency lookup.
 
 ## Verify Before Commit
-- `npm run verify`
+- `pnpm verify`

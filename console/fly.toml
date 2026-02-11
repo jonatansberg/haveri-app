@@ -7,9 +7,10 @@ app = 'haveri-app'
 primary_region = 'fra'
 
 [build]
+  dockerfile = 'console/Dockerfile'
 
 [deploy]
-  release_command = 'npm run db:migrate'
+  release_command = 'pnpm --dir /app/console db:migrate'
 
 [http_service]
   internal_port = 3000

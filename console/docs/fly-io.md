@@ -2,8 +2,8 @@
 
 This project is ready for Fly deployment with:
 - `web` process (`node build`)
-- `worker` process (`npm run worker`)
-- release-time DB migrations (`npm run db:migrate`)
+- `worker` process (`pnpm worker`)
+- release-time DB migrations (`pnpm db:migrate`)
 - unmanaged Redis on Fly (separate Redis app)
 
 ## Files
@@ -50,7 +50,7 @@ fly secrets set --app haveri-redis REDIS_PASSWORD="<strong-random-password>"
 Deploy Redis using included config:
 
 ```bash
-fly deploy -c fly.redis.toml --app haveri-redis
+fly deploy -c console/fly.redis.toml --app haveri-redis
 ```
 
 Note: Fly private networking is IPv6-first. Keep Redis bound to both `0.0.0.0` and `::` (as in `fly.redis.toml`) so `*.internal` connections succeed.
@@ -83,7 +83,7 @@ fly secrets set \
 ## 5. Deploy app
 
 ```bash
-fly deploy
+fly deploy -c console/fly.toml
 ```
 
 The `release_command` in `fly.toml` runs migrations on each deploy.

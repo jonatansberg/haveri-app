@@ -4,7 +4,7 @@ This project includes a Teams app-package generator and a tenant-tailored checkl
 
 ## 1. Configure environment
 
-Set runtime values in `.env`:
+Set runtime values in `console/.env`:
 
 - `TEAMS_INCIDENT_TEAM_ID`: Team id where incident channels are created.
 - `TEAMS_GLOBAL_INCIDENT_CHANNEL`: Global channel reference. Preferred formats:
@@ -16,7 +16,7 @@ Set runtime values in `.env`:
 - `TEAMS_BOT_CLIENT_SECRET` (optional): Bot secret override. Falls back to `TEAMS_CLIENT_SECRET`.
 - `TEAMS_BOT_SERVICE_URL` (optional): Bot Connector service URL for proactive posts. Default: `https://smba.trafficmanager.net/teams`.
 
-Set manifest-generation values in `.env.teams-package` (copy from `.env.teams-package.example`):
+Set manifest-generation values in `console/.env.teams-package` (copy from `console/.env.teams-package.example`):
 
 - `TEAMS_APP_BASE_URL`: Public HTTPS URL for your running Haveri app (for example, your Fly URL or dev tunnel URL).
 - `TEAMS_MANIFEST_APP_ID`: Teams app manifest id (GUID).
@@ -26,7 +26,7 @@ Set manifest-generation values in `.env.teams-package` (copy from `.env.teams-pa
 ## 2. Generate checklist for your tenant
 
 ```bash
-npm run teams:check
+pnpm teams:check
 ```
 
 This prints a concrete checklist using your current env values, including the exact webhook URL.
@@ -34,17 +34,17 @@ This prints a concrete checklist using your current env values, including the ex
 ## 3. Generate Teams manifest
 
 ```bash
-npm run teams:build-package
+pnpm teams:build-package
 ```
 
-This writes `teams/appPackage/manifest.json`.
+This writes `integrations/teams/appPackage/manifest.json`.
 
 ## 4. Ensure package icons exist
 
 The app package must include:
 
-- `teams/appPackage/color.png` (192x192)
-- `teams/appPackage/outline.png` (32x32)
+- `integrations/teams/appPackage/color.png` (192x192)
+- `integrations/teams/appPackage/outline.png` (32x32)
 
 Repo note:
 - Placeholder icons are already included for local testing. Replace them with brand assets before production rollout.
@@ -52,10 +52,10 @@ Repo note:
 ## 5. Zip and upload app package
 
 ```bash
-npm run teams:zip-package
+pnpm teams:zip-package
 ```
 
-Then upload `teams/haveri-teams-app.zip` in Teams (`Apps -> Manage your apps -> Upload an app`).
+Then upload `integrations/teams/haveri-teams-app.zip` in Teams (`Apps -> Manage your apps -> Upload an app`).
 
 ## 6. Bot endpoint
 

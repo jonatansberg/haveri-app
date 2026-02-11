@@ -1,7 +1,7 @@
 import {
   buildTeamsAppPackageConfigFromEnv,
   validateTeamsAppPackageConfig
-} from '../../lib/server/adapters/teams/app-package';
+} from '../app-package';
 
 function toChecklist(config: ReturnType<typeof buildTeamsAppPackageConfigFromEnv>): string {
   const normalizedBaseUrl = config.baseUrl.replace(/\/$/, '');
@@ -30,9 +30,9 @@ function toChecklist(config: ReturnType<typeof buildTeamsAppPackageConfigFromEnv
     '4. Grant Graph permissions used for channel lifecycle operations (for example create/archive channel, add channel members) and grant consent.',
     '',
     '## Haveri Setup',
-    '1. Set Teams env vars in `.env` (see `.env.example`).',
-    '2. Run `npm run teams:build-package` to generate `teams/appPackage/manifest.json`.',
-    '3. Ensure `teams/appPackage/color.png` (192x192) and `teams/appPackage/outline.png` (32x32) exist.',
+    '1. Set Teams env vars in `console/.env` (see `console/.env.example`).',
+    '2. Run `pnpm teams:build-package` to generate `integrations/teams/appPackage/manifest.json`.',
+    '3. Ensure `integrations/teams/appPackage/color.png` (192x192) and `integrations/teams/appPackage/outline.png` (32x32) exist.',
     '4. Zip `manifest.json`, `color.png`, `outline.png` into one package file.',
     '',
     '## Teams Client Setup',

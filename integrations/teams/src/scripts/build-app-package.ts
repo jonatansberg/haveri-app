@@ -4,9 +4,9 @@ import {
   buildTeamsAppPackageConfigFromEnv,
   buildTeamsManifest,
   validateTeamsAppPackageConfig
-} from '../../lib/server/adapters/teams/app-package';
+} from '../app-package';
 
-const APP_PACKAGE_DIR = path.resolve('teams/appPackage');
+const APP_PACKAGE_DIR = path.resolve('appPackage');
 const MANIFEST_PATH = path.join(APP_PACKAGE_DIR, 'manifest.json');
 
 async function main(): Promise<void> {
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   console.log('Manifest ID:', config.manifestId);
   console.log('Base URL:', config.baseUrl);
   console.log('Valid domains:', config.validDomains.join(', '));
-  console.log('Next: zip teams/appPackage with manifest.json + color.png + outline.png for Teams sideload.');
+  console.log('Next: zip appPackage with manifest.json + color.png + outline.png for Teams sideload.');
 }
 
 main().catch((error) => {
