@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { authClient } from '$lib/auth-client';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
@@ -31,14 +32,14 @@
     <header class="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-sm">
       <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
         <div class="flex items-center gap-3">
-          <a href="/" class="font-display text-2xl text-slate-950">Haveri</a>
-          <Badge variant="secondary" class="hidden md:inline-flex">{data.user.email}</Badge>
+          <a href="/" class="font-display text-2xl text-slate-950 decoration-amber/30 underline decoration-2 underline-offset-4">Haveri</a>
+          <Badge variant="secondary" class="hidden md:inline-flex">{data.organizationSlug}</Badge>
         </div>
 
         <nav class="flex items-center gap-2">
-          <Button href="/" variant="ghost">Dashboard</Button>
-          <Button href="/followups" variant="ghost">Follow-ups</Button>
-          <Button href="/settings" variant="ghost">Settings</Button>
+          <Button href="/" variant="ghost" class={$page.url.pathname === '/' ? 'bg-warm-100 text-slate-900 font-semibold' : ''}>Dashboard</Button>
+          <Button href="/followups" variant="ghost" class={$page.url.pathname === '/followups' ? 'bg-warm-100 text-slate-900 font-semibold' : ''}>Follow-ups</Button>
+          <Button href="/settings" variant="ghost" class={$page.url.pathname === '/settings' ? 'bg-warm-100 text-slate-900 font-semibold' : ''}>Settings</Button>
           <Button variant="outline" onclick={signOut}>Sign out</Button>
         </nav>
       </div>

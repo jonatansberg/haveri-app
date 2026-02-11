@@ -1,7 +1,9 @@
 <script lang="ts">
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Check from '@lucide/svelte/icons/check';
   import Info from '@lucide/svelte/icons/info';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import type { ActionData, PageData } from './$types';
   import * as Alert from '$lib/components/ui/alert';
   import { Badge } from '$lib/components/ui/badge';
@@ -37,6 +39,7 @@
   let impactDurationMinutes = initialDuration;
   let resolveFollowUpsInput = '';
   let followUpsInput = '';
+  let editingSummary = false;
   const canEditSummary = data.incident.status === 'RESOLVED' || data.incident.status === 'CLOSED';
 
   function memberLabel(memberId: string): string {
@@ -55,6 +58,35 @@
 
     return 'border-transparent bg-sev3 text-white';
   }
+
+  function formatEventPayload(eventType: string, payload: Record<string, unknown>): string {
+    switch (eventType) {
+      case 'declared':
+        return `Incident declared with severity ${payload['severity'] ?? 'unknown'}`;
+      case 'status_change':
+        return `Status changed from ${payload['from'] ?? '?'} to ${payload['to'] ?? '?'}`;
+      case 'severity_change':
+        return `Severity changed from ${payload['from'] ?? '?'} to ${payload['to'] ?? '?'}`;
+      case 'assignment':
+        return `Responsible lead assigned`;
+      case 'comms_assignment':
+        return `Comms lead assigned`;
+      case 'resolved':
+        return 'Incident marked as resolved';
+      case 'closed':
+        return `Incident closed${typeof payload['followUpCount'] === 'number' ? ` with ${payload['followUpCount']} follow-up${payload['followUpCount'] === 1 ? '' : 's'}` : ''}`;
+      case 'escalation':
+        return `Escalation ${payload['action'] === 'acknowledged' ? 'acknowledged' : `step ${payload['stepOrder'] ?? '?'} triggered`}`;
+      case 'follow_up_created':
+        return `Follow-up created: ${payload['description'] ?? ''}`;
+      case 'annotation':
+        return String(payload['text'] ?? payload['field'] ?? 'Summary updated');
+      case 'triage_response':
+        return `Triage: severity ${payload['fromSeverity'] ?? '?'} → ${payload['toSeverity'] ?? '?'}`;
+      default:
+        return '';
+    }
+  }
 </script>
 
 <section class="grid gap-6">
@@ -67,7 +99,10 @@
 
   <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
     <Card.Header>
-      <Card.Title class="text-3xl text-slate-900">{data.incident.title}</Card.Title>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-amber mb-1">Incident</p>
+        <Card.Title class="font-display text-2xl font-normal text-slate-900">{data.incident.title}</Card.Title>
+      </div>
       <Card.Description class="text-slate-600">
         Declared {new Date(data.incident.declaredAt).toLocaleString()} at {data.incident.facilityName}
       </Card.Description>
@@ -100,88 +135,100 @@
   <div class="grid gap-6 xl:grid-cols-2">
     <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
       <Card.Header>
-        <Card.Title class="text-2xl text-slate-900">Live Controls</Card.Title>
+        <Card.Title class="font-display text-2xl font-normal text-slate-900">Live Controls</Card.Title>
         <Card.Description class="text-slate-600">Manage active workflow roles and escalation state.</Card.Description>
       </Card.Header>
 
-      <Card.Content class="space-y-5">
-        <form method="POST" action="?/status" class="grid gap-2">
-          <Label for="status-select">Status</Label>
-          <Select.Root type="single" name="status" bind:value={statusValue}>
-            <Select.Trigger id="status-select" class="w-full justify-between">{statusValue}</Select.Trigger>
-            <Select.Content>
-              {#each incidentStatuses as status}
-                <Select.Item value={status} label={status} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <Button type="submit" class="w-full sm:w-auto">Update status</Button>
-        </form>
+      <Card.Content class="space-y-4">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <form method="POST" action="?/status" class="grid gap-1.5">
+            <Label for="status-select" class="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</Label>
+            <div class="flex gap-2">
+              <Select.Root type="single" name="status" bind:value={statusValue}>
+                <Select.Trigger id="status-select" class="flex-1 justify-between">{statusValue}</Select.Trigger>
+                <Select.Content>
+                  {#each incidentStatuses as status}
+                    <Select.Item value={status} label={status} />
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              <Button type="submit" size="icon" variant="secondary">
+                <Check class="size-4" />
+              </Button>
+            </div>
+          </form>
 
-        <Separator />
+          <form method="POST" action="?/severity" class="grid gap-1.5">
+            <Label for="severity-select" class="text-xs font-semibold uppercase tracking-wider text-slate-500">Severity</Label>
+            <div class="flex gap-2">
+              <Select.Root type="single" name="severity" bind:value={severityValue}>
+                <Select.Trigger id="severity-select" class="flex-1 justify-between">{severityValue}</Select.Trigger>
+                <Select.Content>
+                  {#each incidentSeverities as severity}
+                    <Select.Item value={severity} label={severity} />
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              <Button type="submit" size="icon" variant="secondary">
+                <Check class="size-4" />
+              </Button>
+            </div>
+          </form>
 
-        <form method="POST" action="?/severity" class="grid gap-2">
-          <Label for="severity-select">Severity</Label>
-          <Select.Root type="single" name="severity" bind:value={severityValue}>
-            <Select.Trigger id="severity-select" class="w-full justify-between">{severityValue}</Select.Trigger>
-            <Select.Content>
-              {#each incidentSeverities as severity}
-                <Select.Item value={severity} label={severity} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <Button type="submit" class="w-full sm:w-auto">Update severity</Button>
-        </form>
+          <form method="POST" action="?/assign" class="grid gap-1.5">
+            <Label for="responsible-select" class="text-xs font-semibold uppercase tracking-wider text-slate-500">Responsible Lead</Label>
+            <div class="flex gap-2">
+              <Select.Root type="single" name="memberId" bind:value={responsibleMemberId}>
+                <Select.Trigger id="responsible-select" class="flex-1 justify-between">
+                  {memberLabel(responsibleMemberId)}
+                </Select.Trigger>
+                <Select.Content>
+                  {#each data.members as member}
+                    <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              <Button type="submit" size="icon" variant="secondary">
+                <Check class="size-4" />
+              </Button>
+            </div>
+          </form>
 
-        <Separator />
-
-        <form method="POST" action="?/assign" class="grid gap-2">
-          <Label for="responsible-select">Assign Responsible Lead</Label>
-          <Select.Root type="single" name="memberId" bind:value={responsibleMemberId}>
-            <Select.Trigger id="responsible-select" class="w-full justify-between">
-              {memberLabel(responsibleMemberId)}
-            </Select.Trigger>
-            <Select.Content>
-              {#each data.members as member}
-                <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <Button type="submit" class="w-full sm:w-auto">Assign responsible</Button>
-        </form>
-
-        <Separator />
-
-        <form method="POST" action="?/assignComms" class="grid gap-2">
-          <Label for="comms-select">Assign Comms Lead</Label>
-          <Select.Root type="single" name="memberId" bind:value={commsMemberId}>
-            <Select.Trigger id="comms-select" class="w-full justify-between">{memberLabel(commsMemberId)}</Select.Trigger>
-            <Select.Content>
-              {#each data.members as member}
-                <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <Button type="submit" class="w-full sm:w-auto">Assign comms</Button>
-        </form>
+          <form method="POST" action="?/assignComms" class="grid gap-1.5">
+            <Label for="comms-select" class="text-xs font-semibold uppercase tracking-wider text-slate-500">Comms Lead</Label>
+            <div class="flex gap-2">
+              <Select.Root type="single" name="memberId" bind:value={commsMemberId}>
+                <Select.Trigger id="comms-select" class="flex-1 justify-between">{memberLabel(commsMemberId)}</Select.Trigger>
+                <Select.Content>
+                  {#each data.members as member}
+                    <Select.Item value={member.id} label={`${member.name} (${member.role})`} />
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              <Button type="submit" size="icon" variant="secondary">
+                <Check class="size-4" />
+              </Button>
+            </div>
+          </form>
+        </div>
 
         <Separator />
 
         <form method="POST" action="?/ack">
-          <Button type="submit" variant="secondary" class="w-full sm:w-auto">Acknowledge escalation</Button>
+          <Button type="submit" variant="secondary" class="w-full">Acknowledge escalation</Button>
         </form>
       </Card.Content>
     </Card.Root>
 
     <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
       <Card.Header>
-        <Card.Title class="text-2xl text-slate-900">Resolve and Close</Card.Title>
+        <Card.Title class="font-display text-2xl font-normal text-slate-900">Resolve Incident</Card.Title>
         <Card.Description class="text-slate-600">
-          Capture summary context before closing and generating follow-ups.
+          Record what happened, why, and how it was fixed.
         </Card.Description>
       </Card.Header>
 
-      <Card.Content class="space-y-6">
+      <Card.Content class="space-y-4">
         <form method="POST" action="?/resolve" class="grid gap-3">
           <div class="grid gap-2">
             <Label for="what-happened">What happened</Label>
@@ -216,9 +263,19 @@
 
           <Button type="submit" class="w-full sm:w-auto">Mark resolved</Button>
         </form>
+      </Card.Content>
+    </Card.Root>
+  </div>
 
-        <Separator />
-
+  {#if data.incident.status === 'RESOLVED'}
+    <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
+      <Card.Header>
+        <Card.Title class="font-display text-2xl font-normal text-slate-900">Close Incident</Card.Title>
+        <Card.Description class="text-slate-600">
+          Add final follow-up tasks and close the incident record.
+        </Card.Description>
+      </Card.Header>
+      <Card.Content>
         <form method="POST" action="?/close" class="grid gap-3">
           <div class="grid gap-2">
             <Label for="follow-ups">Follow-up tasks (one per line)</Label>
@@ -228,16 +285,23 @@
         </form>
       </Card.Content>
     </Card.Root>
-  </div>
+  {/if}
 
   <div class="grid gap-6 xl:grid-cols-2">
     <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
       <Card.Header>
-        <Card.Title class="text-2xl text-slate-900">Summary</Card.Title>
+        <Card.Title class="font-display text-2xl font-normal text-slate-900">Summary</Card.Title>
+        {#if canEditSummary && data.summary}
+          <Card.Action>
+            <Button variant="ghost" size="icon-sm" onclick={() => (editingSummary = !editingSummary)}>
+              <Pencil class="size-4" />
+            </Button>
+          </Card.Action>
+        {/if}
       </Card.Header>
 
       <Card.Content>
-        {#if data.summary}
+        {#if data.summary && !editingSummary}
           <div class="grid gap-4 text-sm leading-relaxed">
             <div>
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">What happened</p>
@@ -253,38 +317,42 @@
             </div>
             <div>
               <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Impact</p>
-              <p>{JSON.stringify(data.summary.impact)}</p>
+              {#if data.summary.impact?.['durationMinutes'] !== undefined}
+                <p>{data.summary.impact['durationMinutes']} minutes of impact</p>
+              {:else}
+                <p class="text-muted-foreground">No impact data recorded</p>
+              {/if}
             </div>
           </div>
-
-          {#if canEditSummary}
-            <Separator class="my-4" />
-            <form method="POST" action="?/summary" class="grid gap-3">
-              <div class="grid gap-2">
-                <Label for="summary-what-happened">What happened</Label>
-                <Textarea id="summary-what-happened" name="whatHappened" bind:value={whatHappened} required />
-              </div>
-              <div class="grid gap-2">
-                <Label for="summary-root-cause">Root cause</Label>
-                <Textarea id="summary-root-cause" name="rootCause" bind:value={rootCause} required />
-              </div>
-              <div class="grid gap-2">
-                <Label for="summary-resolution">Resolution</Label>
-                <Textarea id="summary-resolution" name="resolution" bind:value={resolution} required />
-              </div>
-              <div class="grid gap-2">
-                <Label for="summary-impact-duration">Impact duration (minutes)</Label>
-                <Input
-                  id="summary-impact-duration"
-                  name="impactDurationMinutes"
-                  bind:value={impactDurationMinutes}
-                  inputmode="numeric"
-                  placeholder="45"
-                />
-              </div>
-              <Button type="submit" variant="outline" class="w-full sm:w-auto">Save summary edits</Button>
-            </form>
-          {/if}
+        {:else if data.summary && editingSummary}
+          <form method="POST" action="?/summary" class="grid gap-3">
+            <div class="grid gap-2">
+              <Label for="summary-what-happened">What happened</Label>
+              <Textarea id="summary-what-happened" name="whatHappened" bind:value={whatHappened} required />
+            </div>
+            <div class="grid gap-2">
+              <Label for="summary-root-cause">Root cause</Label>
+              <Textarea id="summary-root-cause" name="rootCause" bind:value={rootCause} required />
+            </div>
+            <div class="grid gap-2">
+              <Label for="summary-resolution">Resolution</Label>
+              <Textarea id="summary-resolution" name="resolution" bind:value={resolution} required />
+            </div>
+            <div class="grid gap-2">
+              <Label for="summary-impact-duration">Impact duration (minutes)</Label>
+              <Input
+                id="summary-impact-duration"
+                name="impactDurationMinutes"
+                bind:value={impactDurationMinutes}
+                inputmode="numeric"
+                placeholder="45"
+              />
+            </div>
+            <div class="flex gap-2">
+              <Button type="submit">Save</Button>
+              <Button type="button" variant="outline" onclick={() => (editingSummary = false)}>Cancel</Button>
+            </div>
+          </form>
         {:else}
           <Alert.Root class="border-warm-300 bg-warm-100/70 text-slate-800">
             <Info />
@@ -297,7 +365,7 @@
 
     <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
       <Card.Header>
-        <Card.Title class="text-2xl text-slate-900">Follow-ups</Card.Title>
+        <Card.Title class="font-display text-2xl font-normal text-slate-900">Follow-ups</Card.Title>
       </Card.Header>
 
       <Card.Content>
@@ -315,17 +383,15 @@
 
                 <form method="POST" action="?/followupStatus" class="mt-3 flex flex-wrap items-center gap-2">
                   <Input type="hidden" name="id" value={followUp.id} />
-                  <select
-                    class="border-input focus-visible:border-ring focus-visible:ring-ring/50 min-w-44 rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-[3px]"
-                    name="status"
-                  >
-                    {#each followUpStatuses as statusOption}
-                      <option value={statusOption} selected={followUp.status === statusOption}>
-                        {statusOption}
-                      </option>
-                    {/each}
-                  </select>
-                  <Button type="submit" variant="outline">Save</Button>
+                  <Select.Root type="single" name="status" value={followUp.status}>
+                    <Select.Trigger class="min-w-36 justify-between">{followUp.status}</Select.Trigger>
+                    <Select.Content>
+                      {#each followUpStatuses as statusOption}
+                        <Select.Item value={statusOption} label={statusOption} />
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <Button type="submit" variant="outline" size="sm">Save</Button>
                 </form>
               </div>
             {/each}
@@ -337,7 +403,7 @@
 
   <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
     <Card.Header>
-      <Card.Title class="text-2xl text-slate-900">Escalation Targets</Card.Title>
+      <Card.Title class="font-display text-2xl font-normal text-slate-900">Escalation Targets</Card.Title>
       <Card.Description class="text-slate-600">
         Per-step notification and acknowledgement state.
       </Card.Description>
@@ -380,8 +446,8 @@
 
   <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
     <Card.Header>
-      <Card.Title class="text-2xl text-slate-900">Timeline</Card.Title>
-      <Card.Description class="text-slate-600">Append-only event stream for this incident.</Card.Description>
+      <Card.Title class="font-display text-2xl font-normal text-slate-900">Timeline</Card.Title>
+      <Card.Description class="text-slate-600">Event stream for this incident.</Card.Description>
     </Card.Header>
 
     <Card.Content>
@@ -389,14 +455,20 @@
         {#each data.events as event}
           <article class="rounded-lg border border-warm-300/80 bg-warm-white/80 p-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <p class="font-semibold text-slate-900">#{event.sequence} {event.eventType}</p>
+              <div class="flex items-center gap-2">
+                <Badge variant="secondary" class="text-xs">{event.eventType.replace(/_/g, ' ')}</Badge>
+                <span class="text-xs text-muted-foreground">#{event.sequence}</span>
+              </div>
               <p class="text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
             </div>
-            <pre class="mt-3 overflow-x-auto rounded-md border border-warm-300/80 bg-slate-900 p-3 text-xs text-warm-white">{JSON.stringify(
-                event.payload,
-                null,
-                2
-              )}</pre>
+            {#if formatEventPayload(event.eventType, event.payload)}
+              <p class="mt-2 text-sm text-slate-700">{formatEventPayload(event.eventType, event.payload)}</p>
+            {:else}
+              <details class="mt-2">
+                <summary class="text-xs text-muted-foreground cursor-pointer hover:text-slate-700">Show raw payload</summary>
+                <pre class="mt-1 overflow-x-auto rounded-md border border-warm-300/80 bg-slate-900 p-3 text-xs text-warm-white">{JSON.stringify(event.payload, null, 2)}</pre>
+              </details>
+            {/if}
           </article>
         {/each}
       </div>

@@ -15,6 +15,7 @@ export async function listFollowUps(input: {
   {
     id: string;
     incidentId: string;
+    incidentTitle: string;
     description: string;
     status: FollowUpStatus;
     dueDate: string | null;
@@ -52,6 +53,7 @@ export async function listFollowUps(input: {
     .select({
       id: followUps.id,
       incidentId: followUps.incidentId,
+      incidentTitle: incidents.title,
       description: followUps.description,
       status: followUps.status,
       dueDate: followUps.dueDate,

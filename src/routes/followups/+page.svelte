@@ -1,9 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { Switch } from 'bits-ui';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
+  import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
 
   export let data: PageData;
@@ -30,7 +32,10 @@
 <section class="grid gap-6">
   <Card.Root class="border-warm-300/80 bg-card/95 shadow-sm">
     <Card.Header>
-      <Card.Title class="text-3xl text-slate-900">Follow-ups</Card.Title>
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-amber mb-1">Action Items</p>
+        <Card.Title class="font-display text-2xl font-normal text-slate-900">Follow-ups</Card.Title>
+      </div>
       <Card.Description class="text-slate-600">
         Track action items across incidents with overdue-first ordering.
       </Card.Description>
@@ -40,46 +45,61 @@
       <form method="GET" class="grid gap-3 rounded-lg border border-warm-300/80 bg-warm-100/40 p-3 lg:grid-cols-4">
         <div class="grid gap-1">
           <Label for="status">Status</Label>
-          <select id="status" name="status" bind:value={status} class="border-input bg-background rounded-md border px-2 py-2 text-sm">
-            <option value="">All</option>
-            {#each statuses as statusOption}
-              <option value={statusOption}>{statusOption}</option>
-            {/each}
-          </select>
+          <Select.Root type="single" name="status" bind:value={status}>
+            <Select.Trigger id="status" class="w-full justify-between">
+              {status || 'All'}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="" label="All" />
+              {#each statuses as statusOption}
+                <Select.Item value={statusOption} label={statusOption} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
         </div>
         <div class="grid gap-1">
           <Label for="assignedToMemberId">Assignee</Label>
-          <select
-            id="assignedToMemberId"
-            name="assignedToMemberId"
-            bind:value={assignedToMemberId}
-            class="border-input bg-background rounded-md border px-2 py-2 text-sm"
-          >
-            <option value="">All</option>
-            {#each data.members as member}
-              <option value={member.id}>{member.name}</option>
-            {/each}
-          </select>
+          <Select.Root type="single" name="assignedToMemberId" bind:value={assignedToMemberId}>
+            <Select.Trigger id="assignedToMemberId" class="w-full justify-between">
+              {data.members.find((m) => m.id === assignedToMemberId)?.name ?? 'All'}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="" label="All" />
+              {#each data.members as member}
+                <Select.Item value={member.id} label={member.name} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
         </div>
         <div class="grid gap-1">
           <Label for="facilityId">Facility</Label>
-          <select id="facilityId" name="facilityId" bind:value={facilityId} class="border-input bg-background rounded-md border px-2 py-2 text-sm">
-            <option value="">All</option>
-            {#each data.facilities as facility}
-              <option value={facility.id}>{facility.name}</option>
-            {/each}
-          </select>
+          <Select.Root type="single" name="facilityId" bind:value={facilityId}>
+            <Select.Trigger id="facilityId" class="w-full justify-between">
+              {data.facilities.find((f) => f.id === facilityId)?.name ?? 'All'}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="" label="All" />
+              {#each data.facilities as facility}
+                <Select.Item value={facility.id} label={facility.name} />
+              {/each}
+            </Select.Content>
+          </Select.Root>
         </div>
         <div class="grid gap-1">
           <Label for="overdue">Overdue only</Label>
-          <input
-            id="overdue"
-            name="overdue"
-            type="checkbox"
-            class="h-4 w-4 rounded border border-input"
-            bind:checked={overdue}
-            value="true"
-          />
+          <div class="flex h-9 items-center">
+            <Switch.Root
+              id="overdue"
+              checked={overdue}
+              onCheckedChange={(checked) => (overdue = checked)}
+              class="relative w-11 h-6 rounded-full bg-warm-200 data-[state=checked]:bg-amber transition-colors cursor-pointer"
+            >
+              <Switch.Thumb class="block size-5 rounded-full bg-white shadow-sm transition-transform translate-x-0.5 data-[state=checked]:translate-x-[1.375rem]" />
+            </Switch.Root>
+            {#if overdue}
+              <input type="hidden" name="overdue" value="true" />
+            {/if}
+          </div>
         </div>
         <div class="lg:col-span-4 flex flex-wrap gap-2">
           <Button type="submit" variant="secondary">Apply filters</Button>
@@ -111,8 +131,8 @@
                   <Table.Cell>{assigneeName(followUp.assignedToMemberId)}</Table.Cell>
                   <Table.Cell>{followUp.dueDate ?? '-'}</Table.Cell>
                   <Table.Cell>
-                    <a href={`/incidents/${followUp.incidentId}`} class="underline underline-offset-4">
-                      {followUp.incidentId}
+                    <a href={`/incidents/${followUp.incidentId}`} class="font-medium text-slate-900 underline-offset-4 hover:underline">
+                      {followUp.incidentTitle ?? followUp.incidentId.slice(0, 8)}
                     </a>
                   </Table.Cell>
                 </Table.Row>
