@@ -22,6 +22,8 @@
     "ops:followup-reminders": "pnpm --filter @haveri/console ops:followup-reminders",
     "web:dev": "pnpm --filter @haveri/web dev",
     "web:build": "pnpm --filter @haveri/web build",
+    "web:check": "pnpm --filter @haveri/web check",
+    "web:lint": "pnpm --filter @haveri/web lint",
     "web:preview": "pnpm --filter @haveri/web preview",
     "deploy:console": "fly deploy -c console/fly.toml",
     "deploy:web": "pnpm --filter @haveri/web deploy"
