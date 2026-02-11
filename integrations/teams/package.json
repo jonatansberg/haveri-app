@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "sh -c 'if [ -f ../../console/.env ]; then if [ -f ../../console/.env.teams-package ]; then node --env-file ../../console/.env --env-file ../../console/.env.teams-package --import tsx src/scripts/print-e2e-checklist.ts; else node --env-file ../../console/.env --import tsx src/scripts/print-e2e-checklist.ts; fi; else node --import tsx src/scripts/print-e2e-checklist.ts; fi'",
-    "build-package": "sh -c 'if [ -f ../../console/.env ]; then if [ -f ../../console/.env.teams-package ]; then node --env-file ../../console/.env --env-file ../../console/.env.teams-package --import tsx src/scripts/build-app-package.ts; else node --env-file ../../console/.env --import tsx src/scripts/build-app-package.ts; fi; else node --import tsx src/scripts/build-app-package.ts; fi'",
+    "check": "sh -c 'if [ -f ../../console/.env ]; then if [ -f .env.teams-package ]; then node --env-file ../../console/.env --env-file .env.teams-package --import tsx src/scripts/print-e2e-checklist.ts; else node --env-file ../../console/.env --import tsx src/scripts/print-e2e-checklist.ts; fi; else if [ -f .env.teams-package ]; then node --env-file .env.teams-package --import tsx src/scripts/print-e2e-checklist.ts; else node --import tsx src/scripts/print-e2e-checklist.ts; fi; fi'",
+    "build-package": "sh -c 'if [ -f ../../console/.env ]; then if [ -f .env.teams-package ]; then node --env-file ../../console/.env --env-file .env.teams-package --import tsx src/scripts/build-app-package.ts; else node --env-file ../../console/.env --import tsx src/scripts/build-app-package.ts; fi; else if [ -f .env.teams-package ]; then node --env-file .env.teams-package --import tsx src/scripts/build-app-package.ts; else node --import tsx src/scripts/build-app-package.ts; fi; fi'",
     "zip-package": "cd appPackage && zip -r ../haveri-teams-app.zip manifest.json color.png outline.png",
     "test": "vitest run"
   },

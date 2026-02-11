@@ -11,7 +11,7 @@ Chat-native incident management MVP built with SvelteKit, Drizzle/PostgreSQL, Be
 
 ## Local Setup
 1. Copy `.env.example` to `.env` and set values.
-2. Optional for Teams manifest packaging: copy `.env.teams-package.example` to `.env.teams-package`.
+2. Optional for Teams manifest packaging: copy `integrations/teams/.env.teams-package.example` to `integrations/teams/.env.teams-package`.
 3. Install dependencies:
    - `pnpm install` (run from repo root)
 4. Run migrations and seed:
@@ -53,7 +53,7 @@ Runtime-only variables (used by server/worker while app is running):
 
 Tooling-only variables (manifest generation only, not required at runtime):
 - `TEAMS_APP_BASE_URL`, `TEAMS_MANIFEST_APP_ID`, `TEAMS_BOT_APP_ID`, and other `TEAMS_APP_*` metadata.
-- Put these in `.env.teams-package` (see `.env.teams-package.example`) to keep runtime `.env` minimal.
+- Put these in `integrations/teams/.env.teams-package` (see `integrations/teams/.env.teams-package.example`) to keep runtime `console/.env` minimal.
 
 Channel reference formats accepted for `TEAMS_GLOBAL_INCIDENT_CHANNEL`:
 - `<channelId>` (uses `TEAMS_INCIDENT_TEAM_ID`)

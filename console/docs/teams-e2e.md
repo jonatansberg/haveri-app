@@ -16,7 +16,7 @@ Set runtime values in `console/.env`:
 - `TEAMS_BOT_CLIENT_SECRET` (optional): Bot secret override. Falls back to `TEAMS_CLIENT_SECRET`.
 - `TEAMS_BOT_SERVICE_URL` (optional): Bot Connector service URL for proactive posts. Default: `https://smba.trafficmanager.net/teams`.
 
-Set manifest-generation values in `console/.env.teams-package` (copy from `console/.env.teams-package.example`):
+Set manifest-generation values in `integrations/teams/.env.teams-package` (copy from `integrations/teams/.env.teams-package.example`):
 
 - `TEAMS_APP_BASE_URL`: Public HTTPS URL for your running Haveri app (for example, your Fly URL or dev tunnel URL).
 - `TEAMS_MANIFEST_APP_ID`: Teams app manifest id (GUID).
