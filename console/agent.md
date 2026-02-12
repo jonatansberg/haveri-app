@@ -27,6 +27,7 @@ Track implementation decisions, current progress, verification status, and next 
   - Teams Graph SDK integration for incident channel creation and global adaptive card post/update.
   - Global incident announcement update fallback: post replacement card when Graph patch is restricted.
   - Teams app package tooling: env-driven manifest generator, placeholder icons, zip command, and tenant-tailored E2E checklist output.
+  - Local Teams tunnel helper: `pnpm teams:sync-tunnel -- https://<stable-hostname>` updates `integrations/teams/.env.teams-package` in one step for stable tunnel loops.
   - Runtime env cleanup: server auth + shared server env getters now read SvelteKit dynamic private env first, with `process.env` fallback, and env examples are split into runtime vs manifest-tooling.
   - Auth UX hardening: sign-in/sign-up now use explicit `try/catch/finally` handling so thrown client/network errors surface in the UI and loading state is always reset.
   - Auth flow UX fix: sign-in/sign-up now show explicit success status, redirect on success, and detect unexpected HTML auth responses (typically origin/baseURL mismatch) with clear inline guidance.
@@ -61,6 +62,15 @@ Track implementation decisions, current progress, verification status, and next 
 - Last migration run: PASS (`pnpm db:migrate`) applying `001_init.sql` and `002_incident_workflow_channels.sql`.
 - Last seed run: PASS (`pnpm db:seed`) with `Seed complete`.
 - Last production build run: PASS (`node --env-file .env ./node_modules/vite/bin/vite.js build`).
+- Last agent regression loop run: PASS (`pnpm agent:loop`) including console unit tests + Playwright public E2E tests.
+
+## Agent Local Loop (Teams + Browser)
+1. Start app locally: `pnpm dev`.
+2. Start tunnel: `cloudflared tunnel run haveri-dev`.
+3. Sync manifest env with tunnel URL: `pnpm teams:sync-tunnel -- https://<stable-hostname>`.
+4. Rebuild sideload package: `pnpm teams:build-package && pnpm teams:zip-package`.
+5. Run local regression loop before/after fixes: `pnpm agent:loop`.
+6. Use `agent-browser` against local app and tunnel URL for fast manual verification paths (login, incident creation, settings, Teams webhook reachability).
 
 ## Remaining
 - Add deeper integration tests around incident workflow + global announcement synchronization against a live Teams sandbox tenant.

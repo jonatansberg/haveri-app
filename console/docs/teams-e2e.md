@@ -23,6 +23,66 @@ Set manifest-generation values in `integrations/teams/.env.teams-package` (copy 
 - `TEAMS_BOT_APP_ID`: Entra/Bot app id used by the Teams bot (GUID).
 - Other `TEAMS_APP_*` metadata fields.
 
+### Local tunnel loop (stable hostname)
+
+Use a named Cloudflare tunnel with a fixed hostname so Teams app installs stay stable.
+
+Prerequisite: `cloudflared` must be installed and available on your PATH.
+
+One-time setup:
+
+1. Authenticate and create named tunnel:
+
+```bash
+cloudflared tunnel login
+cloudflared tunnel create haveri-dev
+```
+
+2. Route a stable hostname (replace with your domain):
+
+```bash
+cloudflared tunnel route dns haveri-dev teams-dev.your-domain.com
+```
+
+3. Create `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: haveri-dev
+ingress:
+  - hostname: teams-dev.your-domain.com
+    service: http://localhost:5173
+  - service: http_status:404
+```
+
+Daily dev loop:
+
+1. Start app locally:
+
+```bash
+pnpm dev
+```
+
+2. Start tunnel in a second terminal:
+
+```bash
+cloudflared tunnel run haveri-dev
+```
+
+3. Sync Teams env values with the stable URL:
+
+```bash
+pnpm teams:sync-tunnel -- https://teams-dev.your-domain.com
+```
+
+4. Build/zip once for first install (and again only if manifest metadata changes):
+
+```bash
+pnpm teams:build-package
+pnpm teams:zip-package
+```
+
+With a stable hostname you usually do not need to reinstall the app on each restart.
+
 ## 2. Generate checklist for your tenant
 
 ```bash

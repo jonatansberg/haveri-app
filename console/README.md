@@ -63,6 +63,7 @@ Channel reference formats accepted for `TEAMS_GLOBAL_INCIDENT_CHANNEL`:
 Teams packaging scripts:
 - `pnpm teams:check` prints a tenant-tailored E2E checklist.
 - `pnpm teams:build-package` generates `integrations/teams/appPackage/manifest.json` from env.
+- `pnpm teams:sync-tunnel -- https://<stable-hostname>` updates `integrations/teams/.env.teams-package` for local tunnel testing.
 - `pnpm teams:zip-package` builds `integrations/teams/haveri-teams-app.zip` for Teams sideload.
 - Full setup guide: `docs/teams-e2e.md`
 

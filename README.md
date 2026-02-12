@@ -22,10 +22,12 @@ pnpm install
 - `pnpm dev`: Run console app locally
 - `pnpm build`: Build console app
 - `pnpm test`: Run console unit tests
+- `pnpm agent:loop`: Run agent regression loop (unit + public Playwright E2E)
 - `pnpm verify`: Run console check + lint + tests
 - `pnpm web:dev`: Run marketing site locally
 - `pnpm teams:check`: Print tenant-tailored Teams E2E checklist
 - `pnpm teams:build-package`: Generate Teams manifest
+- `pnpm teams:sync-tunnel -- <https-url>`: Update Teams package env values from stable tunnel URL
 - `pnpm teams:zip-package`: Build Teams sideload zip
 
 ## Package Docs
